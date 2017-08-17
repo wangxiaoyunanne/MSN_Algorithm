@@ -10,38 +10,89 @@ import math
 import time
 import Queue
 import threading
-import pp
+import numpy
+from mpi4py import MPI
+import itertools
+import argparse
+import collections
+import os
+import re
+import sys
 
 ###### EXTRA METHODS ######
-def hashToGraph(hashNumber, xDim, yDim):
-    edgeArray = []
-    for x in range(xDim*(yDim+1) + yDim*(xDim+1)):
-        edgeArray.append(0)
-    l = len(str(hashNumber))
-    for i in range(l):
-        edgeArray[i] = hashNumber%10
-        hashNumber = int(hashNumber/10)
-    returnGraph = Graph.Graph(util.Counter(), util.Counter(), xDim, yDim)
-    for x in range(xDim*(yDim+1)):
-        if edgeArray[x] == 1:
-            newVert1 = Graph.Vertex(0, x, xDim, yDim)
-            newVert2 = Graph.Vertex(1, x, xDim, yDim)
-            returnGraph = returnGraph.addEdge(newVert1, newVert2)
-    y = xDim*(yDim+1)
-    i = 0
-    j = 0
-    while y < xDim*(yDim+1) + yDim*(xDim+1):
-        if edgeArray[y] == 1:
-            newVert1 = Graph.Vertex(i, (1+j), xDim, yDim)
-            newVert2 = Graph.Vertex(i, (0+j), xDim, yDim)
-            returnGraph = returnGraph.addEdge(newVert1, newVert2)
-        y+=1
-        j+=1
-        if j >= yDim:
-            j = 0
-            i += 1
+def extractListOfEdges(listOfEdgeStr):
+    outputList = []
+    edge = []
+    currTup = []
+    paren = 0
+    number = ""
+    for char in listOfEdgeStr:
+        if char == ' ':
+            continue
+        if char == '(':
+            paren += 1
+            continue
+        #if char == ')' and paren == 2:
+        #    paren -= 1
+        #    edge.append(currTup)
+        #    currTup = []
+        #    continue
+        if char == ')' and number == "":
+            paren -= 1
+            continue
+        if char == ')' and paren == 2:
+            currTup.append(int(number))
+            edge.append(currTup)
+            currTup = []
+            paren -= 1
+            number = ""
+            continue
+        if char == ')' and paren == 1:
+            edge.append(int(number))
+            outputList.append(edge)
+            edge = []
+            number = ""
+            paren -= 1
+        try:
+            tempNum = int(char)
+            number += str(tempNum)
+            continue
+            #print number
+        except ValueError:
+            #if char == ')':
+            #    edge.append(int(number))
+            #    paren -= 1
+            #    number = ""
+            if char == ',' and len(number) != 0:
+                currTup.append(int(number))
+                #print currTup
+                number = ""
+                continue
+    return outputList
             
-    return returnGraph
+def makeGraph(listOfEdges, graphXDim, graphYDim, n):
+    listOfV = util.Counter()
+    listOfE = util.Counter()
+    for edgeCoord in listOfEdges:
+        vertex1 = Graph.Vertex(edgeCoord[0][0], edgeCoord[0][1], graphXDim, graphYDim)
+        vertex2 = Graph.Vertex(edgeCoord[1][0], edgeCoord[1][1], graphXDim, graphYDim)
+        listOfV[vertex1.getCoordinate()] = vertex1
+        listOfV[vertex2.getCoordinate()] = vertex2
+        newE = Graph.Edge(vertex1, vertex2, edgeCoord[2], graphXDim, graphYDim)
+        listOfE[newE.getCoordinate()] = newE
+    return Graph.Graph(listOfV, listOfE, graphXDim, graphYDim, n)
+
+def makeKnot(listOfEdges, graphXDim, graphYDim, n):
+    listOfV = util.Counter()
+    listOfE = util.Counter()
+    for edgeCoord in listOfEdges:
+        vertex1 = Graph.Vertex(edgeCoord[0][0], edgeCoord[0][1], graphXDim, graphYDim)
+        vertex2 = Graph.Vertex(edgeCoord[1][0], edgeCoord[1][1], graphXDim, graphYDim)
+        listOfV[vertex1.getCoordinate()] = vertex1
+        listOfV[vertex2.getCoordinate()] = vertex2
+        newE = Graph.DiagramEdge(vertex1, vertex2, graphXDim, graphYDim, edgeCoord[2])
+        listOfE[newE.getCoordinate()] = newE
+    return Graph.Graph(listOfV, listOfE, graphXDim, graphYDim, n)
 
 ## method to measure time of algorithm
 def print_timing(func):
@@ -53,64 +104,36 @@ def print_timing(func):
         return res
     return wrapper
 
+## method for reading subparts and parsing it to our need
+def parse_subpart(line, xDim, yDim, slabNum, n):
+    match = re.search(r'\(([-\d]+), "(.*)", \[(.*)\], \[(.*)\]', line)
+    if not match:
+        return
+    output = extractListOfEdges(match.group(2))
+    knot_diagram = makeKnot(output, xDim, yDim, n)
+    configuration = [int(i) for i in match.group(3).split(',')]
+    stack = []
+    keys = []
+    tup = ''
+    allkeys = []
+    for char in match.group(4):
+        if len(stack) == 2:
+            if char != ')' and char != '(':
+                tup += char
+        if char == '(':
+            stack.append(char)
+        if char == ')':
+            stack.pop()
+            if len(stack) == 1:
+                num1, num2 = tup.split(',')
+                vertex = (int(num1), int(num2))
+                tup = ''
+                keys.append(vertex)
+            if len(stack) == 0:
+                allkeys.append(tuple(keys))
+                keys = []
+    return int(match.group(1)), (knot_diagram, (configuration, tuple(allkeys)))
 
-##### Threading to improve step 0 #######
-class ThreadUnweightedGraphs(threading.Thread):
-
-    def __init__(self, listOfXGraphs, higherDimExpandibleGraphs, outputSet, setOfEqGraphs, listOfExpandibleVert, expandibleXTuples, x, xDim, yDim):
-        threading.Thread.__init__(self)
-        self.queue = queue
-        self.listOfXGraphs = listOfXGraphs
-        self.outputSet = outputSet
-        self.setOfEqGraphs = setOfEqGraphs
-        self.expandingXTuples = listOfExpandibleVert
-        self.expandibleXTuples = expandibleXTuples
-        self.currentX = x
-        self.higherDimExpandibleGraphs = higherDimExpandibleGraphs
-        self.xDim = xDim
-        self.yDim = yDim
-        #self.out_queue = out_queue
-        
-    def run(self):
-        outputSet = set()
-        isNotInEq = True
-        expandedGraph = set()
-        setOfEqGraphs = self.setOfEqGraphs
-        outputSet = self.outputSet
-        higherDimExpandibleGraphs = util.Queue()
-        #for x in self.listOfXGraphs:
-        for x in self.listOfXGraphs:
-            #expandingGraph = self.queue.get()
-            expandingGraph = x
-            if expandingGraph not in expandedGraph:
-                expandedGraph.add(expandingGraph)
-                expandedGraph.add(expandingGraph.reflectXGraph())
-                for newXGraph in expandGraphX(expandingGraph, self.expandingXTuples, self.currentX-1):
-                    biggestDimXGraph = Graph.Graph(newXGraph.allVertices, newXGraph.allEdges, self.xDim, self.yDim)
-                    isNotInList = True
-                    isNotInEq = True
-                    if isXExpandible(newXGraph, self.expandibleXTuples):
-                        higherDimXGraph = Graph.Graph(newXGraph.allVertices, newXGraph.allEdges, self.currentX+1, self.yDim)
-                        higherDimExpandibleGraphs.push(higherDimXGraph)
-                    else:
-                        higherDimXGraph = Graph.Graph(newXGraph.allVertices, newXGraph.allEdges, self.xDim, self.yDim)
-                    if higherDimXGraph in self.outputSet:
-                            isNotInList = False
-                    for newEqXGraph in newXGraph.generateEqClass():
-                        biggestDimEqXGraph = Graph.Graph(newEqXGraph.allVertices, newEqXGraph.allEdges, self.xDim, self.yDim)
-                        if isXExpandible(newEqXGraph, self.expandibleXTuples):
-                            higherDimXEqGraph = Graph.Graph(newEqXGraph.allVertices, newEqXGraph.allEdges, self.currentX+1, self.yDim)
-                            higherDimExpandibleGraphs.push(higherDimXEqGraph)
-                        if biggestDimEqXGraph in setOfEqGraphs:
-                            isNotInEq = False
-                        else:
-                            setOfEqGraphs.add(biggestDimEqXGraph)
-                    if isNotInList and isNotInEq:
-                        outputSet.add(biggestDimXGraph)
-        self.outputSet = outputSet
-        self.higherDimExpandibleGraphs = higherDimExpandibleGraphs
-            #self.queue.task_done()
-    
 ################# STEP ZERO METHOD ########################
 # Step 0 of the MSN Alg: to enumerate all possible planar graphs
 
@@ -165,6 +188,7 @@ def expandGraphY(givenGraph, listOfExpandibleVert, y):
                 newGraphSet.add(newGraph2)
                 newGraph2 = newGraph2.addEdge(newVert2, newVert3)
                 newGraphSet.add(newGraph2)
+                
                 if newVert3 in givenGraph.allVertices.values():
                     newGraph3 = newGraph.addEdge(newVert2, newVert3)
                     newGraphSet.add(newGraph3)
@@ -203,7 +227,121 @@ def iter_flatten(iterable):
     else:
       yield e
 
-def expandGraphX(givenGraph, listOfExpandibleVert, x):
+"""
+def generateLsOfYCoord(yDim):
+    lsOfYCoords = []
+    for ele in divideArr(range(yDim +1)):
+        if isinstance(ele, int):
+            lsOfYCoords.append([ele])
+        else:
+            tmp = []
+            for x in iter_flatten(ele):
+                tmp.append(x)
+            lsOfYCoords.append(tmp)
+    return lsOfYCoords
+
+#returns list of possible x expansions
+def createXGraphs(xDim, yDim, n):
+    expandibleGraphs = util.Stack()
+    expandedGraphs = set()
+    newGraphSet = set()
+    keyVertexList = []
+    leftVertices = []
+    left = []
+    rightVertices = dict()
+    allGraphs = []
+    returnGraphSet = dict()
+    lsOfYCoords = generateLsOfYCoord(yDim)
+    for yC in range(yDim+1):
+        returnGraphSet[yC] = []
+    listOfExpandibleVert = makeXExpandibleVertices(0, yDim, xDim, yDim)
+    givenGraph = Graph.Graph(util.Counter(), util.Counter(), xDim, yDim, n)
+    x = 0
+    for vertTup in listOfExpandibleVert:
+        newVert = Graph.Vertex(vertTup[0], vertTup[1], xDim, yDim)
+        leftVertices.append(newVert)
+        left.append(newVert)
+        givenGraph.allVertices[vertTup] = newVert
+    #givenGraph.toPrint()
+    for i in range(yDim+1):
+        rightVertex = Graph.Vertex(x+1, i, givenGraph.graphXDim, givenGraph.graphYDim)
+        rightVertices[i] = rightVertex
+    for lef in divideArr(left):
+        if isinstance(lef, Graph.Vertex):
+            expandingGraph = givenGraph.addEdge(lef, rightVertices[lef.yCoord])
+            expandibleGraphs.push(expandingGraph)
+            newGraphSet.add(expandingGraph)
+            allGraphs.append(expandingGraph)
+            for edge in expandingGraph.allEdges.values():
+                if edge.v1.xCoord == x and edge.v2.xCoord==x+1:
+                    returnGraphSet[edge.v1.yCoord].append(expandingGraph)            
+        else:
+            expandingGraph = givenGraph
+            for v in iter_flatten(lef):
+                expandingGraph = expandingGraph.addEdge(v, rightVertices[v.yCoord])
+            expandibleGraphs.push(expandingGraph)
+            newGraphSet.add(expandingGraph)
+            allGraphs.append(expandingGraph)
+            for edge in expandingGraph.allEdges.values():
+                if edge.v1.xCoord == x and edge.v2.xCoord==x+1:
+                    returnGraphSet[edge.v1.yCoord].append(expandingGraph)
+    while not expandibleGraphs.isEmpty():
+        expandingGraph = expandibleGraphs.pop()
+        if expandingGraph not in expandedGraphs:
+            expandedGraphs.add(expandingGraph)
+            #for vert in rightVertices.values():
+            for vertex in expandingGraph.allVertices.keys():
+                if vertex not in givenGraph.allVertices.keys():
+                    vert = expandingGraph.allVertices[vertex]
+                    for neighborVertex in expandingGraph.getLegalNeighborVertex(vert):
+                        condition = False
+                        if len(leftVertices) == givenGraph.graphYDim+1:
+                            condition = neighborVertex.xCoord != x and neighborVertex.yCoord != vert.yCoord
+                        elif xDim < 6 and xDim == yDim:
+                            condition = (neighborVertex.xCoord != x and vert.xCoord != x and neighborVertex.xCoord != x-1) or (neighborVertex.xCoord == x and neighborVertex.yCoord == vert.yCoord) and neighborVertex not in givenGraph.allVertices.values()
+                        else:
+                            condition = neighborVertex not in givenGraph.allVertices.values()
+                        if condition:
+                            if not expandingGraph.hasEdge(vert, neighborVertex):
+                                newGraph = expandingGraph.addEdge(vert, neighborVertex)
+                                if not newGraph in newGraphSet:
+                                    theYCoords = []
+                                    for edge in newGraph.allEdges.values():
+                                        if edge.v2.xCoord == x+1 and edge.v1.xCoord == x:
+                                            returnGraphSet[edge.v1.yCoord].append(newGraph)
+                                    newGraphSet.add(newGraph)
+                                    expandibleGraphs.push(newGraph)
+    return returnGraphSet
+@print_timing
+def expandGraphX2(givenGraph, expandingAddonSet, x, xDim, yDim):
+    #print "given Graph"
+    #givenGraph.toPrint()
+    alreadyExpanded = set()
+    output = set()
+    for yC in range(yDim+1):
+        for addons in expandingAddonSet[yC]:
+            #addons.toPrint()
+            if addons not in alreadyExpanded:
+                alreadyExpanded.add(addons)
+                addonE = addons.allEdges.values()
+                edge1 = addonE[0]
+                newE1 = Graph.Edge(Graph.Vertex(edge1.v1.xCoord+x, edge1.v1.yCoord, xDim, yDim), Graph.Vertex(edge1.v2.xCoord+x, edge1.v2.yCoord, xDim, yDim), edge1.weight, xDim, yDim)
+                newGraph = givenGraph.addEdge(newE1.v1, newE1.v2)
+                for edge in addonE[1:-1]:
+                    newE = Graph.Edge(Graph.Vertex(edge.v1.xCoord+x, edge.v1.yCoord, xDim, yDim), Graph.Vertex(edge.v2.xCoord+x, edge.v2.yCoord, xDim, yDim), edge.weight, xDim, yDim)
+                    newGraph.imm_addEdge(newE)
+                if len(addonE) >= 2:
+                    edgeF = addonE[-1]
+                    newEF = Graph.Edge(Graph.Vertex(edgeF.v1.xCoord+x, edgeF.v1.yCoord, xDim, yDim), Graph.Vertex(edgeF.v2.xCoord+x, edgeF.v2.yCoord, xDim, yDim), edgeF.weight, xDim, yDim)
+                    newGraph = newGraph.addEdge(newEF.v1, newEF.v2)
+                #newGraph.toPrint()
+                if newGraph not in output:
+                    #newGraph.toPrint()
+                    output.add(newGraph)
+    return output
+@print_timing
+"""
+def expandGraphX(givenGraph, listOfExpandibleVert, x, xDim, yDim):
     expandibleGraphs = util.Stack()
     expandedGraphs = set()
     newGraphSet = set()
@@ -221,21 +359,22 @@ def expandGraphX(givenGraph, listOfExpandibleVert, x):
         rightVertices[i] = rightVertex
         if isinstance(x, list):
             y = iter_flatten(x)
-    for x in divideArr(left):
-        if isinstance(x, Graph.Vertex):
-            expandingGraph = givenGraph.addEdge(x, rightVertices[x.yCoord])
+    for lef in divideArr(left):
+        if isinstance(lef, Graph.Vertex):
+            expandingGraph = givenGraph.addEdge(lef, rightVertices[lef.yCoord])
             expandibleGraphs.push(expandingGraph)
             newGraphSet.add(expandingGraph)
             allGraphs.append(expandingGraph)
         else:
             expandingGraph = givenGraph
-            for v in iter_flatten(x):
+            for v in iter_flatten(lef):
                 expandingGraph = expandingGraph.addEdge(v, rightVertices[v.yCoord])
             expandibleGraphs.push(expandingGraph)
             newGraphSet.add(expandingGraph)
             allGraphs.append(expandingGraph)
     while not expandibleGraphs.isEmpty():
         expandingGraph = expandibleGraphs.pop()
+        #expandingGraph.toPrint()
         if expandingGraph not in expandedGraphs:
             expandedGraphs.add(expandingGraph)
             #for vert in rightVertices.values():
@@ -246,8 +385,10 @@ def expandGraphX(givenGraph, listOfExpandibleVert, x):
                         condition = False
                         if len(leftVertices) == givenGraph.graphYDim+1:
                             condition = neighborVertex.xCoord != x and neighborVertex.yCoord != vert.yCoord
+                        elif xDim < 6 and xDim == yDim:
+                            condition = (neighborVertex.xCoord != x and vert.xCoord != x and neighborVertex.xCoord != x-1) or (neighborVertex.xCoord == x and neighborVertex.yCoord == vert.yCoord) and neighborVertex not in givenGraph.allVertices.values()
                         else:
-                            condition = neighborVertex not in givenGraph.allVertices.values()#(neighborVertex.xCoord != x and vert.xCoord != x) or neighborVertex.xCoord == x-1
+                            condition = neighborVertex not in givenGraph.allVertices.values()
                         if condition:
                             if not expandingGraph.hasEdge(vert, neighborVertex):
                                 newGraph = expandingGraph.addEdge(vert, neighborVertex)
@@ -258,18 +399,19 @@ def expandGraphX(givenGraph, listOfExpandibleVert, x):
                                     
     return allGraphs
 
+
 #main method to inductively enumerate all graphs that fit in xDim, yDim.
 @print_timing
-def enumerateAllGraphs(xDim, yDim):
+def enumerateAllGraphs(xDim, yDim, n):
+    #xExpanded = createXGraphs(xDim, yDim, n)
     listOfAllGraphs = []
     setOfGraphs = set()
-    setOfEqGraphs = set()
     expandedGraph = set()
     v0 = Graph.Vertex(0, 0, 1, 1)
-    graph0 = Graph.Graph(util.Counter(), util.Counter(), 1, 1)
+    graph0 = Graph.Graph(util.Counter(), util.Counter(), 1, 1, n)
     graph0.addVertex(v0)
-    higherDimExpandibleGraphs = util.Queue()
-    xDimExpandibleGraphs = util.Queue()
+    higherDimExpandibleGraphs = util.Stack()
+    xDimExpandibleGraphs = set()
     toBeExpandedGraphs = util.Stack()
     toBeExpandedGraphs.push(graph0)
     x, y = 1, 1
@@ -278,8 +420,8 @@ def enumerateAllGraphs(xDim, yDim):
     while y <= yDim:
         expandibleTuple = makeYExpandibleVertices(x, y, xDim, yDim)
         expandingTuple = makeYExpandibleVertices(x, y-1, xDim, yDim)
-        
         expandibleXTuples = makeXExpandibleVertices(x, yDim, xDim, yDim)
+        #base case: 1 x 1 square
         if y == 1:
             while not toBeExpandedGraphs.isEmpty():
                 expandingGraph = toBeExpandedGraphs.pop()
@@ -288,240 +430,124 @@ def enumerateAllGraphs(xDim, yDim):
                     for vertex in expandingGraph.allVertices.values():
                         for neighborVertex in expandingGraph.getLegalNeighborVertex(vertex):
                             if not expandingGraph.hasEdge(vertex, neighborVertex):
-                                isNotInList = True
-                                isNotInEq = True
                                 newGraph = expandingGraph.addEdge(vertex, neighborVertex)
-                                biggestDimGraph2 = Graph.Graph(newGraph.allVertices, newGraph.allEdges, xDim, yDim)
-                                if isYExpandible(newGraph, expandibleTuple):
-                                    higherDimGraph2 = Graph.Graph(newGraph.allVertices, newGraph.allEdges, x, y+1)
-                                else:
-                                    higherDimGraph2 = newGraph
+                                eqClass = newGraph.generateEqClass()
+                                biggestDimGraph2 = Graph.Graph(eqClass[0].allVertices, eqClass[0].allEdges, xDim, yDim, n)
                                 if isXExpandible(newGraph, expandibleXTuples):
-                                    xHigherDimGraph = Graph.Graph(newGraph.allVertices, newGraph.allEdges, x+1, yDim)
-                                    xDimExpandibleGraphs.push(xHigherDimGraph)
+                                    xHigherDimGraph = Graph.Graph(newGraph.allVertices, newGraph.allEdges, x+1, yDim, n)
+                                    xDimExpandibleGraphs.add(xHigherDimGraph)
                                 if biggestDimGraph2 in setOfGraphs:
-                                    isNotInList = False
-                                for eqGraph in newGraph.generateEqClass():
-                                    biggestDimGraph = Graph.Graph(eqGraph.allVertices, eqGraph.allEdges, xDim, yDim)
+                                    continue
+                                setOfGraphs.add(biggestDimGraph2)
+                                for eqGraph in eqClass[1]:
+                                    toBeExpandedGraphs.push(eqGraph)
                                     if isYExpandible(eqGraph, expandibleTuple):
-                                        higherDimGraph = Graph.Graph(eqGraph.allVertices, eqGraph.allEdges, x, y+1)
+                                        higherDimGraph = Graph.Graph(eqGraph.allVertices, eqGraph.allEdges, x, y+1, n)
                                         higherDimExpandibleGraphs.push(higherDimGraph)
-                                    else:
-                                        higherDimGraph =  Graph.Graph(eqGraph.allVertices, eqGraph.allEdges, x, yDim)
                                     if isXExpandible(eqGraph, expandibleXTuples):
-                                        xHigherDimGraph = Graph.Graph(eqGraph.allVertices, eqGraph.allEdges, x+1, yDim)
-                                        xDimExpandibleGraphs.push(xHigherDimGraph)
-                                    if biggestDimGraph in setOfEqGraphs:
-                                        isNotInEq = False
-                                    if biggestDimGraph not in setOfEqGraphs:
-                                        toBeExpandedGraphs.push(eqGraph)
-                                        setOfEqGraphs.add(biggestDimGraph)
-                                if isNotInList and isNotInEq:
-                                    setOfGraphs.add(biggestDimGraph2)
-                                    listOfAllGraphs.append(biggestDimGraph2)
+                                        xHigherDimGraph = Graph.Graph(eqGraph.allVertices, eqGraph.allEdges, x+1, yDim, n)
+                                        xDimExpandibleGraphs.add(xHigherDimGraph)
         else:
+            #induct on y-expansion first
             while not toBeExpandedGraphs.isEmpty():
                 expandingGraph = toBeExpandedGraphs.pop()
                 if expandingGraph not in expandedGraph:
                     expandedGraph.add(expandingGraph)
                     for newGraphExpanded in expandGraphY(expandingGraph, expandingTuple, y-1):
-                        biggestDimGraph2 = Graph.Graph(newGraphExpanded.allVertices, newGraphExpanded.allEdges, xDim, yDim)
-                        isNotInList = True
-                        isNotInEq = True
-                        if isYExpandible(newGraphExpanded, expandibleTuple):
-                            higherDimGraph2 = Graph.Graph(newGraphExpanded.allVertices, newGraphExpanded.allEdges, x, y+1)
-                            higherDimExpandibleGraphs.push(higherDimGraph2)
-                        else:
-                            higherDimGraph2 = Graph.Graph(newGraphExpanded.allVertices, newGraphExpanded.allEdges, x, yDim)
+                        eqClass2 = newGraphExpanded.generateEqClassY()
+                        biggestDimGraph2 = Graph.Graph(eqClass2[0].allVertices, eqClass2[0].allEdges, xDim, yDim, n)
                         if isXExpandible(newGraphExpanded, expandibleXTuples):
-                            xHigherDimGraph = Graph.Graph(newGraphExpanded.allVertices, newGraphExpanded.allEdges, x+1, yDim)
-                            xDimExpandibleGraphs.push(xHigherDimGraph)
-                        if higherDimGraph2 in setOfGraphs:
-                            isNotInList = False
-                        for newEqGraph in newGraphExpanded.generateEqClass():
-                            biggestDimGraph = Graph.Graph(newEqGraph.allVertices, newEqGraph.allEdges, xDim, yDim)
-                            if isYExpandible(newEqGraph, expandibleTuple):
-                                higherDimGraph = Graph.Graph(newEqGraph.allVertices, newEqGraph.allEdges, x, y+1)
-                                higherDimExpandibleGraphs.push(higherDimGraph)
-                            else:
-                                higherDimGraph = Graph.Graph(newEqGraph.allVertices, newEqGraph.allEdges, x, yDim)
-                            if isXExpandible(newEqGraph, expandibleXTuples):
-                                xHigherDimGraph = Graph.Graph(newEqGraph.allVertices, newEqGraph.allEdges, x+1, yDim)
-                                xDimExpandibleGraphs.push(xHigherDimGraph)
-                            if biggestDimGraph in setOfEqGraphs:
-                                isNotInEq = False
-                            if biggestDimGraph not in setOfEqGraphs:
-                                setOfEqGraphs.add(biggestDimGraph)
-                        if isNotInList and isNotInEq:
+                            xHigherDimGraph = Graph.Graph(newGraphExpanded.allVertices, newGraphExpanded.allEdges, x+1, yDim, n)
+                            xDimExpandibleGraphs.add(xHigherDimGraph)
+                        if biggestDimGraph2 in setOfGraphs:
+                            continue
+                        if newGraphExpanded.isYFull:
                             setOfGraphs.add(biggestDimGraph2)
-                            listOfAllGraphs.append(biggestDimGraph2)
+                        for newEqGraph in eqClass2[1]:
+                            #if newEqGraph.isYFull:
+                            if isYExpandible(newEqGraph, expandibleTuple):
+                                higherDimGraph = Graph.Graph(newEqGraph.allVertices, newEqGraph.allEdges, x, y+1, n)
+                                higherDimExpandibleGraphs.push(higherDimGraph)
+                            if isXExpandible(newEqGraph, expandibleXTuples):
+                                xHigherDimGraph = Graph.Graph(newEqGraph.allVertices, newEqGraph.allEdges, x+1, yDim, n)
+                                xDimExpandibleGraphs.add(xHigherDimGraph)
                                 
         y += 1
         toBeExpandedGraphs = higherDimExpandibleGraphs
         higherDimExpandibleGraphs = util.Queue()
         expandedGraph = set() 
     x+=1
-    
+    newSet = xDimExpandibleGraphs
+    xDimExpandibleGraphs = set()
     #Now expand in the x-direction
     while x <= xDim:
-        while not xDimExpandibleGraphs.isEmpty():
-            expandingGraph = xDimExpandibleGraphs.pop()
+        for expandingGraph in newSet:
             if expandingGraph not in expandedGraph:
                 expandibleXTuples = makeXExpandibleVertices(x, yDim, xDim, yDim)
                 expandingXTuples = makeXExpandibleVertices(x-1, yDim, xDim, yDim)
                 expandedGraph.add(expandingGraph)
                 expandedGraph.add(expandingGraph.reflectXGraph())
-                for newXGraph in expandGraphX(expandingGraph, expandingXTuples, x-1):
-                    biggestDimXGraph = Graph.Graph(newXGraph.allVertices, newXGraph.allEdges, xDim, yDim)
-                    isNotInList = True
-                    isNotInEq = True
+                #expandingGraph.toPrint()
+                for newXGraph in expandGraphX(expandingGraph, expandingXTuples, x-1, xDim, yDim):
+                #for newXGraph in expandGraphX2(expandingGraph, xExpanded, x-1, xDim, yDim):
                     if isXExpandible(newXGraph, expandibleXTuples):
-                        higherDimXGraph = Graph.Graph(newXGraph.allVertices, newXGraph.allEdges, x+1, yDim)
-                        higherDimExpandibleGraphs.push(higherDimXGraph)
-                    else:
-                        higherDimXGraph = Graph.Graph(newXGraph.allVertices, newXGraph.allEdges, xDim, yDim)
-                    if higherDimXGraph in setOfGraphs:
-                            isNotInList = False
-                    for newEqXGraph in newXGraph.generateEqClass():
-                        biggestDimEqXGraph = Graph.Graph(newEqXGraph.allVertices, newEqXGraph.allEdges, xDim, yDim)
-                        if isXExpandible(newEqXGraph, expandibleXTuples):
-                            higherDimXEqGraph = Graph.Graph(newEqXGraph.allVertices, newEqXGraph.allEdges, x+1, yDim)
-                            higherDimExpandibleGraphs.push(higherDimXEqGraph)
-                        if biggestDimEqXGraph in setOfEqGraphs:
-                            isNotInEq = False
-                        else:
-                            setOfEqGraphs.add(biggestDimEqXGraph)
-                    if isNotInList and isNotInEq:
+                        higherDimXEqGraph = Graph.Graph(newXGraph.allVertices, newXGraph.allEdges, x+1, yDim, n)
+                        xDimExpandibleGraphs.add(higherDimXEqGraph)
+                    # Ignore if y is full but x is not
+                    if not newXGraph.isXFull and newXGraph.isYFull:
+                        continue
+                    # Check if x is full but y is not full if x > y. if so then add. else we know eq is made at y expansion so ignore
+                    if newXGraph.isXFull and not newXGraph.isYFull:
+                        tempGraph = newXGraph.reduceGraph()
+                        if newXGraph.graphXDim > newXGraph.graphYDim:
+                            eqClass = tempGraph.generateEqClass()
+                            checkEq = eqClass[0]
+                            biggestDimXGraph = Graph.Graph(checkEq.allVertices, checkEq.allEdges, xDim, yDim, n)
+                            if biggestDimXGraph in setOfGraphs:
+                                continue       
+                            setOfGraphs.add(biggestDimXGraph)
+                        elif newXGraph.graphXDim < newXGraph.graphYDim:
+                            if tempGraph.graphYDim != 1:
+                                eqClass = tempGraph.generateEqClass()
+                                checkEq = eqClass[0]
+                                biggestDimXGraph = Graph.Graph(checkEq.allVertices, checkEq.allEdges, xDim, yDim, n)
+                                setOfGraphs.add(biggestDimXGraph)
+                        eqClass = newXGraph.generateEqClass()
+                            
+                    # Check if both x and y full. If so, add
+                    elif newXGraph.isXFull and newXGraph.isYFull:
+                        eqClass = newXGraph.generateEqClass()
+                        checkEq = eqClass[0]
+                        biggestDimXGraph = Graph.Graph(checkEq.allVertices, checkEq.allEdges, xDim, yDim, n)
+                        if biggestDimXGraph in setOfGraphs:
+                            continue       
                         setOfGraphs.add(biggestDimXGraph)
-                        listOfAllGraphs.append(biggestDimXGraph)
+                    # both not full
+                    else:
+                        eqClass = newXGraph.generateEqClass()
+                    # For the case x is not full and y is not full, note it has been added before so just check for equivalent ones for future expansion
+                    for newEqXGraph in eqClass[1]:
+                        if isXExpandible(newEqXGraph, expandibleXTuples):
+                            higherDimXEqGraph = Graph.Graph(newEqXGraph.allVertices, newEqXGraph.allEdges, x+1, yDim, n)
+                            xDimExpandibleGraphs.add(higherDimXEqGraph)
         x += 1
-        xDimExpandibleGraphs = higherDimExpandibleGraphs
-        higherDimExpandibleGraphs = util.Queue()
+        newSet = xDimExpandibleGraphs
+        xDimExpandibleGraphs = set()
         expandedGraph = set() 
     return setOfGraphs
 
-@print_timing
-def parallelEnumerateAllGraphs(xDim, yDim):
-    #initialize local variable sets
-    filter = set()
-    setOfExpandibleGraphs = set()
-    setOfGraphs = set()
-    expandedGraph = set()
-    
-    #setup
-    v0 = Graph.Vertex(0, 0, 1, 1)
-    graph0 = Graph.Graph(util.Counter(), util.Counter(), 1, 1)
-    graph0.addVertex(v0)
-    higherDimExpandibleGraphs = util.Queue()
-    xDimExpandibleGraphs = util.Queue()
-    toBeExpandedGraphs = util.Stack()
-    toBeExpandedGraphs.push(graph0)
-    x, y = 1, 1
-    
-    #WLOG, we can choose to expand in the y-direction first.
-    while y <= yDim:
-        expandibleTuple = makeYExpandibleVertices(x, y, xDim, yDim)
-        expandingTuple = makeYExpandibleVertices(x, y-1, xDim, yDim)
-        
-        expandibleXTuples = makeXExpandibleVertices(x, yDim, xDim, yDim)
-        if y == 1:
-            while not toBeExpandedGraphs.isEmpty():
-                expandingGraph = toBeExpandedGraphs.pop()
-                if expandingGraph not in expandedGraph:
-                    expandedGraph.add(expandingGraph)
-                    for vertex in expandingGraph.allVertices.values():
-                        for neighborVertex in expandingGraph.getLegalNeighborVertex(vertex):
-                            if not expandingGraph.hasEdge(vertex, neighborVertex):
-                                isNotInList = True
-                                isNotInEq = True
-                                newGraph = expandingGraph.addEdge(vertex, neighborVertex)
-                                biggestDimGraph2 = Graph.Graph(newGraph.allVertices, newGraph.allEdges, xDim, yDim)
-                                if biggestDimGraph2 in filter:
-                                    continue
-                                setOfGraphs.add(biggestDimGraph2)
-                                for eqGraph in newGraph.generateEqClass():
-                                    biggestDimGraph = Graph.Graph(eqGraph.allVertices, eqGraph.allEdges, xDim, yDim)
-                                    if isYExpandible(eqGraph, expandibleTuple):
-                                        higherDimGraph = Graph.Graph(eqGraph.allVertices, eqGraph.allEdges, x, y+1)
-                                        higherDimExpandibleGraphs.push(higherDimGraph)
-                                    if isXExpandible(eqGraph, expandibleXTuples):
-                                        xHigherDimGraph = Graph.Graph(eqGraph.allVertices, eqGraph.allEdges, x+1, yDim)
-                                        setOfExpandibleGraphs.add(xHigherDimGraph)
-                                    toBeExpandedGraphs.push(eqGraph)
-                                for eqBigGraph in biggestDimGraph2.generateEqClass():
-                                    filter.add(eqBigGraph)
-        else:
-            while not toBeExpandedGraphs.isEmpty():
-                expandingGraph = toBeExpandedGraphs.pop()
-                if expandingGraph not in expandedGraph:
-                    expandedGraph.add(expandingGraph)
-                    for newGraphExpanded in expandGraphY(expandingGraph, expandingTuple, y-1):
-                        biggestDimGraph2 = Graph.Graph(newGraphExpanded.allVertices, newGraphExpanded.allEdges, xDim, yDim)
-                        isNotInList = True
-                        isNotInEq = True
-                        if biggestDimGraph2 in filter:
-                            continue
-                        setOfGraphs.add(biggestDimGraph2)
-                        for newEqGraph in newGraphExpanded.generateEqClass():
-                            biggestDimGraph = Graph.Graph(newEqGraph.allVertices, newEqGraph.allEdges, xDim, yDim)
-                            if isYExpandible(newEqGraph, expandibleTuple):
-                                higherDimGraph = Graph.Graph(newEqGraph.allVertices, newEqGraph.allEdges, x, y+1)
-                                higherDimExpandibleGraphs.push(higherDimGraph)
-                            else:
-                                higherDimGraph = Graph.Graph(newEqGraph.allVertices, newEqGraph.allEdges, x, yDim)
-                            if isXExpandible(newEqGraph, expandibleXTuples):
-                                xHigherDimGraph = Graph.Graph(newEqGraph.allVertices, newEqGraph.allEdges, x+1, yDim)
-                                setOfExpandibleGraphs.add(xHigherDimGraph)
-                        for eqBigGraph in biggestDimGraph2.generateEqClass():
-                            filter.add(eqBigGraph)
-                                
-        y += 1
-        toBeExpandedGraphs = higherDimExpandibleGraphs
-        higherDimExpandibleGraphs = util.Queue()
-        expandedGraph = set() 
-    x+=1
-    #Now expand in the x-direction
-    while x <= xDim:
-        unweighted = []
-        ppservers = ()
-        expandibleXTuples = makeXExpandibleVertices(x, yDim, xDim, yDim)
-        expandingXTuples = makeXExpandibleVertices(x-1, yDim, xDim, yDim)
-        job_server = pp.Server(ppservers=ppservers)
-        jobs = [(expandingGraph, job_server.submit(expandGraphX, (expandingGraph, expandingXTuples, x-1), (divideArr, iter_flatten,), ("Graph", "util", ))) for expandingGraph in setOfExpandibleGraphs]
-        setOfExpandibleGraphs = set()
-        for expandingGraph, job in jobs:
-            unweighted.extend(job())
-        for newXGraph in unweighted:
-            biggestDimXGraph = Graph.Graph(newXGraph.allVertices, newXGraph.allEdges, xDim, yDim)
-            if biggestDimXGraph in filter:
-                continue
-            setOfGraphs.add(biggestDimXGraph)
-            for newEqXGraph in newXGraph.generateEqClass():
-                biggestDimEqXGraph = Graph.Graph(newEqXGraph.allVertices, newEqXGraph.allEdges, xDim, yDim)
-                if isXExpandible(newEqXGraph, expandibleXTuples):
-                    higherDimXEqGraph = Graph.Graph(newEqXGraph.allVertices, newEqXGraph.allEdges, x+1, yDim)
-                    higherDimExpandibleGraphs.push(higherDimXEqGraph)
-                    setOfExpandibleGraphs.add(higherDimXEqGraph)
-            for eqBigGraph in biggestDimXGraph.generateEqClass():
-                filter.add(eqBigGraph)
-                
-        x += 1
-        xDimExpandibleGraphs = higherDimExpandibleGraphs
-        higherDimExpandibleGraphs = util.Queue()
-        expandedGraph = set()
-        
-    return setOfGraphs
-    
-    
+
 ###################### STEP ONE METHODS #########################
 
 # helper method for Step 1 in creating possible a, b, and c to add in the weights
 def makeChart(n, xDim, yDim):
     c_max = int(math.floor(n/3))
+    if c_max%2 == 1:
+        c_max -= 1
     c_min = 4
     c_value = 4
     c_range = [4]
-    while c_value is not c_max:
+    while c_value != c_max:
         c_value += 2
         c_range.append(c_value)
     a_min = 4
@@ -531,7 +557,7 @@ def makeChart(n, xDim, yDim):
     for c in c_range:
         a_value = c
         b_value = n - a_value - c
-        while b_value >= a_value:
+        while b_value >= c:
             listOfTripletABC.append([a_value, b_value, c])
             a_value += 2
             b_value = n - a_value - c
@@ -574,7 +600,7 @@ def permutate(permutableSequence):
         return newAllPermutations
     
 # Step 1 of MSN Algorithm: enumerating all legal weighted graphs given a specific graph
-def enumerateAllWeightedGraphs(givenGraph, xDim, yDim, slabNum, givenChart):
+def enumerateAllWeightedGraphs(givenGraph, xDim, yDim, slabNum, givenChart, n):
     #initialize the sets
     filter = set()
     equivalentGraphSet = set()
@@ -582,535 +608,417 @@ def enumerateAllWeightedGraphs(givenGraph, xDim, yDim, slabNum, givenChart):
     
     #start with all possible triplets
     for possible_triplet in givenChart:
-        possibleAWeights = partition(possible_triplet[0], givenGraph.unweighted_a)
-        possibleCWeights = partition(possible_triplet[1], givenGraph.unweighted_c)  
+        possibleAWeights = partition(possible_triplet[2], givenGraph.unweighted_a)
+        possibleBWeights = partition(possible_triplet[1], givenGraph.unweighted_b)  
         for a_value in possibleAWeights:
+            legalAVal = True
+            for a_vals in a_value:
+                if a_vals > slabNum+1:
+                    legalAVal = False
+                    break
+            if not legalAVal:
+                break
             permutationOfAValues = permutate(a_value)
-            for c_value in possibleCWeights:
-                permutationOfCValues = permutate(c_value)
+            for b_value in possibleBWeights:
+                legalBVal = True
+                for b_vals in b_value:
+                    if b_vals > slabNum+1:
+                        legalBVal = False
+                        break
+                if not legalBVal:
+                    break
+                permutationOfBValues = permutate(b_value)
                 for permute_a in permutationOfAValues:
-                    for permute_c in permutationOfCValues:
+                    for permute_b in permutationOfBValues:
                         newAllEdges = util.Counter()
                         i = 0
                         j = 0
                         for edge in givenGraph.allEdges:
                             graphEdge = givenGraph.allEdges[edge]
                             if graphEdge.orientation == '|':
-                                newEdge = Graph.Edge(graphEdge.v1, graphEdge.v2, permute_a[i], graphEdge.graphXDim, graphEdge.graphYDim)
+                                newEdge = Graph.Edge(graphEdge.v1, graphEdge.v2, permute_b[i], graphEdge.graphXDim, graphEdge.graphYDim)
                                 i += 1
                             elif graphEdge.orientation == '_':
-                                newEdge = Graph.Edge(graphEdge.v1, graphEdge.v2, permute_c[j], graphEdge.graphXDim, graphEdge.graphYDim)
+                                newEdge = Graph.Edge(graphEdge.v1, graphEdge.v2, permute_a[j], graphEdge.graphXDim, graphEdge.graphYDim)
                                 j += 1
                             newAllEdges[newEdge.getCoordinate()] = newEdge
-                        newGraph = Graph.Graph(givenGraph.allVertices, newAllEdges, givenGraph.graphXDim, givenGraph.graphYDim)
-                        valid = True
-                        for edge in newGraph.allEdges.values():
-                            if edge.weight > slabNum+1:
-                                valid = False
-                                break
-                        legal = newGraph.isLegalWeightedGraph() and (not newGraph.isReducible()) and valid
+                        newGraph = Graph.Graph(givenGraph.allVertices, newAllEdges, givenGraph.graphXDim, givenGraph.graphYDim, n)
+                        legal = newGraph.isLegalWeightedGraph() and (not newGraph.isReducible(slabNum))
                         if newGraph not in filter and legal:
+                        #if legal:
+                                #newGraph.toPrint()
                             weightedGraphSet.add(newGraph)
-                            for eqGraph in newGraph.generateEqClass():
+                            #if possible_triplet == [8, 10, 8]:
+                            #    print permute_a, permute_b, possible_triplet
+                            #    newGraph.toPrint()
+                            for eqGraph in newGraph.generateEqClass()[1]:
                                 filter.add(eqGraph)
-    
-    #for graph in listOfWeightedGraphs:
-    #    graph.toPrint()
     
     return weightedGraphSet
 
 ###################### STEP TWO METHODS #########################
 
 #helper method to create alternating level edges
+def generateEdgeBank(xDim, yDim, slabNum):
+    edgeBank = util.Counter()
+    xCoords = range(xDim+1)
+    yCoords = range(yDim+1)
+    verticeList = list(itertools.product(xCoords, yCoords))
+        
+    while len(verticeList) != 0:
+        currVert = verticeList.pop(0)
+        v = Graph.Vertex(currVert[0], currVert[1], xDim, yDim)
+        if currVert[0]+1 <=  xDim and 0 <= currVert[0]+1:
+            de = Graph.DiagramEdge(v, Graph.Vertex(currVert[0]+1, currVert[1], xDim, yDim), xDim, yDim , 0)
+            coords = de.getCoordinate()
+            tempTuple = (coords[0], coords[1])
+            edgeBank[tempTuple] = []
+            edgeBank[tempTuple].append(de)
+            for i in range(slabNum):
+                edgeBank[tempTuple].append(Graph.DiagramEdge(v, Graph.Vertex(currVert[0]+1, currVert[1], xDim, yDim), xDim, yDim , i+1))
+                
+        if currVert[0]-1 <=  xDim and 0 <= currVert[0]-1:
+            de = Graph.DiagramEdge(v, Graph.Vertex(currVert[0]-1, currVert[1], xDim, yDim), xDim, yDim , 0)
+            coords = de.getCoordinate()
+            tempTuple = (coords[0], coords[1])
+            edgeBank[tempTuple] = []
+            edgeBank[tempTuple].append(de)
+            for i in range(slabNum):
+                edgeBank[tempTuple].append(Graph.DiagramEdge(v, Graph.Vertex(currVert[0]-1, currVert[1], xDim, yDim), xDim, yDim , i+1))
+                
+        if currVert[1]+1 <= yDim and 0 <= currVert[1]+1:
+            de = Graph.DiagramEdge(v, Graph.Vertex(currVert[0], currVert[1]+1, xDim, yDim), xDim, yDim , 0)
+            coords = de.getCoordinate()
+            tempTuple = (coords[0], coords[1])
+            edgeBank[tempTuple] = []
+            edgeBank[tempTuple].append(de)
+            for i in range(slabNum):
+                edgeBank[tempTuple].append(Graph.DiagramEdge(v, Graph.Vertex(currVert[0], currVert[1]+1, xDim, yDim), xDim, yDim , i+1)) 
+        if currVert[1]-1 <= yDim and 0 <= currVert[1]-1:
+            de = Graph.DiagramEdge(v, Graph.Vertex(currVert[0], currVert[1]-1, xDim, yDim), xDim, yDim , 0)
+            coords = de.getCoordinate()
+            tempTuple = (coords[0], coords[1])
+            edgeBank[tempTuple] = []
+            edgeBank[tempTuple].append(de)
+            for i in range(slabNum):
+                edgeBank[tempTuple].append(Graph.DiagramEdge(v, Graph.Vertex(currVert[0], currVert[1]-1, xDim, yDim), xDim, yDim , i+1)) 
+    return edgeBank
+    
+# index keeping track of possible knot diagram edges permutation by edge weight
+def generateEdgeIndex(slabNum):
+    edgeIndex = []
+    for i in range(slabNum+2):
+        edgeIndex.append([])
+        
+    for ele in divideArr(range(slabNum+1)):
+        result = []
+        if isinstance(ele, list):
+            for ele2 in iter_flatten(ele):
+                result.append(ele2)
+        else:
+            result.append(ele)
+        edgeIndex[len(result)].append(result)
+    return edgeIndex
+
+
+###################### STEP TWO METHODS #########################
 
 # Step 2 of MSN Algorithm: enumerate all knot diagram given weighted graphs
-def enumerateAllKnotDiagrams(givenWeightedGraph, xDim, yDim, slabNum):
+def enumerateAllKnotDiagrams(givenWeightedGraph, xDim, yDim, slabNum, n, edgeBank, edgeIndex):
     newAllVertices = givenWeightedGraph.allVertices
     for vertex in givenWeightedGraph.allVertices.values():
-        if givenWeightedGraph.getValence(vertex) > 4:
+        if givenWeightedGraph.getValence(vertex) > (slabNum+1)*2:
             return []
-            
-    listOfPossibleKnotDiagrams = []
-    newKnotDiagram = Graph.KnotDiagram(givenWeightedGraph.allVertices, util.Counter(), xDim, yDim)
-    #for each weightedEdge, convert into DiagramEdge
-    allEdgeVals = givenWeightedGraph.allEdges.values()
-    weight2Edges = []
-    #make new datastructure for now: probably replacing allVertices with this for all graphs
-    for edge in allEdgeVals:
-        if edge.weight == 2:
-            weight2Edges.append(edge)
-            
-    ##### start the enumeration #######
-
-    #take care of weight 2 edges
-    listOfPossibleKnotDiagrams.append(newKnotDiagram)
-    while len(weight2Edges) != 0:
-        weight2Edge = weight2Edges.pop()
-        allEdgeVals.remove(weight2Edge)
-        newList1 = []
-        for knotDiag in listOfPossibleKnotDiagrams:
-            #make two DiagramEdges and insert them into the already made knotDiagrams
-            diagramEdge1 = Graph.DiagramEdge(weight2Edge.v1, weight2Edge.v2, xDim, yDim , 0)
-            diagramEdge2 = Graph.DiagramEdge(weight2Edge.v1, weight2Edge.v2, xDim, yDim , 1)
-            newKnotDiag = knotDiag.addEdge(diagramEdge1)
-            newKnotDiag = newKnotDiag.addEdge(diagramEdge2)
-            newList1.append(newKnotDiag) 
-        listOfPossibleKnotDiagrams = newList1
-        #take care of all the edges sharing its two vertices, for better efficiency.
-        connectedEdges = (givenWeightedGraph.vertexEdgeMatrix[weight2Edge.v1.getCoordinate()], givenWeightedGraph.vertexEdgeMatrix[weight2Edge.v2.getCoordinate()])
-        for connectedEdgeList in connectedEdges:
-            for edge in weight2Edges:
-                try:
-                    connectedEdgeList.remove(edge)
-                except ValueError:
-                    continue
-        
-            if len(connectedEdgeList) == 2:
-                newList2=[]
-                for x in range(2):
-                    diagramEdge1 = Graph.DiagramEdge(connectedEdgeList[0].v1, connectedEdgeList[0].v2, xDim, yDim , x)
-                    diagramEdge2 = Graph.DiagramEdge(connectedEdgeList[1].v1, connectedEdgeList[1].v2, xDim, yDim , (x+1)%2)
-                    for alreadyMadeKnotDiag in listOfPossibleKnotDiagrams:
-                        newKnotDiag1 = alreadyMadeKnotDiag.addEdge(diagramEdge1).addEdge(diagramEdge2)
-                        newList2.append(newKnotDiag1)
-                listOfPossibleKnotDiagrams = newList2
-                allEdgeVals.remove(connectedEdgeList[0])
-                allEdgeVals.remove(connectedEdgeList[1])
-                #"""
-        
-    #make two DiagramEdges and insert one or the other, making an additional new knotDiagram
-    while len(allEdgeVals) != 0:
-        newList=[]
-        newEdge = allEdgeVals.pop()
-        diagramEdge1 = Graph.DiagramEdge(newEdge.v1, newEdge.v2, xDim, yDim , 0)
-        diagramEdge2 = Graph.DiagramEdge(newEdge.v1, newEdge.v2, xDim, yDim , 1)
-        for alreadyMadeKnotDiag in listOfPossibleKnotDiagrams:
-            newKnotDiag1 = alreadyMadeKnotDiag.addEdge(diagramEdge1)
-            newKnotDiag2 = alreadyMadeKnotDiag.addEdge(diagramEdge2)
-            newList.append(newKnotDiag1)
-            newList.append(newKnotDiag2)
-        listOfPossibleKnotDiagrams = newList
-    
-    return listOfPossibleKnotDiagrams
+    # list of permutation indices for each respective weighted edge
+    edgePermutation = util.Counter()
+    edgeWeights = []
+    baseArray = []
+    # fill in the edgeBankd and edgePermutation according to each edge in the given weighted graph    
+    for theEdge in givenWeightedGraph.allEdges.values():
+        # dictionary with key as coordinate of edge and value as the possible permutations of edge bank indices
+        edgePermutation[theEdge.getCoordinate()] = edgeIndex[theEdge.weight]
+    for permuted in edgePermutation.values():
+        edgeWeights.append(len(permuted)-1)
+        baseArray.append(0)
+    baseArray[0] = -1
+    while not baseArray == edgeWeights:
+        result = []
+        baseArray[0] += 1
+        indexCount = 0
+        while (baseArray[indexCount] > edgeWeights[indexCount]):
+            baseArray[indexCount+1] += (baseArray[indexCount]-edgeWeights[indexCount])
+            baseArray[indexCount] = 0
+            indexCount += 1
+        accessCounter = 0
+        KnotDiagramEdges = util.Counter()
+        vertexCounter = util.Counter()
+        allkeys = edgePermutation.keys()
+        broken = False
+        for i in range(len(edgePermutation.values())):
+            index = edgePermutation.values()[i]   
+            for indexx in index[baseArray[accessCounter]]:
+                tempKD = edgeBank[allkeys[i]][indexx]
+                KnotDiagramEdges[tempKD.getCoordinate()] = tempKD
+                vertexCounter[tempKD.getCoordinate()[0], tempKD.getCoordinate()[2]] += 1
+                vertexCounter[tempKD.getCoordinate()[1], tempKD.getCoordinate()[2]] += 1
+                if vertexCounter[tempKD.getCoordinate()[0], tempKD.getCoordinate()[2]] >= 3 or vertexCounter[tempKD.getCoordinate()[1], tempKD.getCoordinate()[2]] >= 3:
+                    broken = True
+                    break
+            accessCounter+=1
+        if not broken:
+            targetKnotDiagram = Graph.KnotDiagram(givenWeightedGraph.allVertices, KnotDiagramEdges, xDim, yDim, n)
+            path = realizeAllKnots(targetKnotDiagram, n)
+            if path:
+                print path
 
 ###################### STEP THREE METHODS #########################
 # Step 3 of MSN Algorithm: realize all valid Knot Diagrams into actual Knots
 
 def realizeAllKnots(givenKnotDiagram, n):
     path = givenKnotDiagram.getPath()
-    if path!=0:
+    if path!=0 and len(path) == n:
         return path
+    else:
+        return 0
 
-
-###################### MAIN RUNNER #########################
-@print_timing
-def runAlgorithm(n, xDim, yDim):
-    import __main__
+#check if neighbor
+def isNeighbor(vert1, vert2):
+    if (abs(vert1[0]-vert2[0]) == 1 and vert1[1]-vert2[1] == 0 and vert1[2]-vert2[2] == 0) or (vert1[0]-vert2[0] == 0 and abs(vert1[1]-vert2[1]) == 1 and vert1[2]-vert2[2] == 0) or (abs(vert1[2]-vert2[2]) == 1 and vert1[1]-vert2[1] == 0 and vert1[0]-vert2[0] == 0):
+        return True
+    return False
+#check to see if reducible
+def checkReducible(path):
+    for i in range(len(path)):
+        if isNeighbor(path[i], (path[(i+3)%len(path)])):
+            return (True, (path[i], path[(i+1)%len(path)], path[(i+2)%len(path)], path[(i+3)%len(path)]))
+    return False
     
-    print "Running for n = %u, for %u by %u" % (n, xDim, yDim)
+def realizeAllKnots(givenKnotDiagram, n):
+    path = givenKnotDiagram.getPath()
+    if path!=0 and len(path) == n and not checkReducible(path):
+        return path
+    else:
+        return 0
+
+def runAlgorithm(xDim, yDim, slabNum, n, serialFlag):
+    import __main__
     #test cases to check code
     
-######## RUNNING THE ALGORITHM
-    filter = set()
+######## RUNNING THE ALGORITHM    
+    #all serial stuff
+    edgeBank = generateEdgeBank(xDim, yDim, slabNum)
+    edgeIndex = generateEdgeIndex(slabNum)
     listOfAllGraphs = []
     weightedList = []
     knotDiags = []
     allKnots = []
     chart = makeChart(n, xDim, yDim)
-    #parallel stuff
-    allUnweightedGraphs = parallelEnumerateAllGraphs(xDim, yDim)
+    if serialFlag:
+        """
+        fileName = "figEightSortedGraphs.txt"
+        newWeightedList = []
+        with open(fileName, 'r') as f:
+            idLines=[L[:-1] for L in f.readlines()]
+            iiii = 74
+            for line in idLines[iiii:200]:
+                if line[0] == '(':
+                    output = extractListOfEdges(line)
+                    newG = makeGraph(output, xDim, yDim, n)
+                    newWeightedList.append(newG)
+            #newWeightedList.sort(key=lambda x: x[0])
+            
+            for wgraph in newWeightedList:
+                print iiii
+                wgraph.toPrint()
+                #    print wgraph[1].printEdges()
+                enumerateAllKnotDiagrams(wgraph, xDim, yDim, slabNum, n, edgeBank, edgeIndex)
+                iiii += 1
+        """
+        #print "Running for n = %u, for %u by %u" % (n, xDim, yDim)
+        listOfAllGraphs = enumerateAllGraphs(xDim,yDim, n)
+        print "Total number of unweighted graphs enumerated: " + len(listOfAllGraphs).__str__()
+        #enumerate the weighted graphs now
+        for ugraph in listOfAllGraphs:
+            weightedList.extend(enumerateAllWeightedGraphs(ugraph, xDim, yDim, slabNum, chart, n)) 
+        print "Total number of weighted graphs enumerated: " + len(weightedList).__str__()
+        for wgraph in weightedList:
+            #print wgraph.printEdges()
+            #wgraph.toPrint()
+            # Node ID is 0 for serial version
+            enumerateAllKnotDiagrams(wgraph, xDim, yDim, slabNum, n, edgeBank, edgeIndex)
+        #"""
+    else:
+        comm = MPI.COMM_WORLD
+        size = comm.size
+        root = 0
+        scattering = []
+        scattering1 = []
+        scattering2 = []
+        scattering3 = []
+        if comm.rank == 0:
+            #run with given weighted graphs`
+            #fileName = "fig8W" + str(n) + "_weightedGraphs.txt"
+            fileName = "figEightSortedGraphs.txt"
+            incomplete = "indices_done.txt"
+            newWeightedList = []
+            with open(fileName, 'r') as f:
+                idLines=[L[:-1] for L in f.readlines()]
+                index_done = set()
+                #### USED FOR FILLING IN UNFINISHED JOBS ####
+                with open(incomplete, 'r') as f2:
+                    idLines2=[L[:-1] for L in f2.readlines()]
+                    for ind in idLines2:
+                        try:
+                            index_done.add(int(ind))
+                        except ValueError:
+                            continue
+                #for remaining in index_left:
+                #output = extractListOfEdges(idLines[remaining])
+                #newWeightedList.append((makeGraph(output, xDim, yDim, n),remaining))
+                for remaining in xrange(2000, len(idLines)):
+                    if remaining not in index_done:
+                        output = extractListOfEdges(idLines[remaining])
+                        newWeightedList.append((makeGraph(output, xDim, yDim, n),remaining))
+            #regular run
+            """
+            print "Running for n = %u, for %u by %u" % (n, xDim, yDim)
+            listOfAllGraphs = enumerateAllGraphs(xDim,yDim, n)
+            length = len(listOfAllGraphs)
+            listOfGraphs = list(listOfAllGraphs)
+            print "Total number of unweighted graphs enumerated: " + str(length)
+            #length = 150
+            if size < length:
+                for i in range(size):
+                    scattering1.append(listOfGraphs[i*length/size:(i+1)*length/size])
+            else:
+                scattering1.append(listOfGraphs)
+                for i in range(size-1):
+                    scattering1.append([])
+            
+            v1=comm.scatter(scattering1, root)
+            y = []
+            for unweightedGraph in v1:
+                y.extend(enumerateAllWeightedGraphs(unweightedGraph, xDim, yDim, slabNum, chart, n))
+            weightedList=comm.gather(y,root)
     
-    #listOfAllGraphs2 = enumerateAllGraphs(xDim,yDim)
+            if comm.rank==0:
+                fullWeightedList = []
+                for graphs in numpy.array(weightedList):
+                    for x in graphs:
+                        fullWeightedList.append(x)
+                #newWeightedList = fullWeightedList[:100]
+                newWeightedList = fullWeightedList
+            """
+            length = len(newWeightedList)
+            #length = len(fullWeightedList)
+            #length = len(newWeightedList)
+            print "Total number of weighted graphs enumerated: " + str(length)
+            #print "from " + str(start) + " to " + str(end)
+            #for wgraphh in fullWeightedList:
+            #print wgraphh.printEdges()
+            #length = len(newWeightedListt)
+            if size <= length:
+                for i in range(size):
+                    scattering2.append(newWeightedList[i*length/size:(i+1)*length/size])
+            else:
+                scattering2.append(newWeightedList)
+                for i in range(size-1):
+                    scattering2.append([])
     
-    print "Total number of unweighted graphs enumerated: " + str(len(allUnweightedGraphs))
-    #print len(listOfAllGraphs2)
-    #parallelize adding the weights:
-    ppservers = ()
-    job_server = pp.Server(ppservers=ppservers)
-    
-    # Parallelize dat adding of weights
-    jobs = [(unweightedGraph, job_server.submit(enumerateAllWeightedGraphs, (unweightedGraph, xDim, yDim, 1, chart), (permutate, partition, partitionAll,), ("Graph", "util", ))) for unweightedGraph in allUnweightedGraphs]
-    for unweightedGraph, job in jobs:
-        weightedList.extend(job())
-    
-    print "Total number of weighted graphs enumerated: " + str(len(weightedList))
-    
-    # Parallelize dat enumeration of knot diagrams
-    jobs = [(weightedGraph, job_server.submit(enumerateAllKnotDiagrams, (weightedGraph, xDim, yDim, 1), ( ), ("Graph", "util", ))) for weightedGraph in weightedList]
-    for weightedGraph, job in jobs:
-        knotDiags.extend(job())
-    print "Total number of Knot Diagrams enumerated: " + str(len(knotDiags))
-
-    # Parallelize dat getting all the vertices
-    jobs = [(knotDiagram, job_server.submit(realizeAllKnots, (knotDiagram, n, ), ( ), ("Graph", "util",))) for knotDiagram in knotDiags]
-    for knotDiagram, job in jobs:
-        allKnots.append(job())
-    knots = []
-    for knot in allKnots:
-        if knot!= None:
-            knots.append(knot)
-    
-    print "Total number of Knots enumerated: " + str(len(knots))
-    
-    for knot in knots:
-        for vertex in knot:
-            print vertex
-        print
+        v2=comm.scatter(scattering2,root)
+        y = []
+        for weightedGraph in v2:
+            enumerateAllKnotDiagrams(comm.rank, weightedGraph[0], xDim, yDim, slabNum, n, edgeBank, edgeIndex)
+            print weightedGraph[1]
+            
+def main(args):
+    try:
+        if args[0] == '-h':
+            print
+            print "Runs the MSN Algorithm with given parameters"
+            print
+            print "Usage: python msnAlgRunner.py [-h] x_dim y_dim z_dim step_number s/p"
+            print
+            print "Positional Arguments: "
+            print "     x_dim           dimension of x projection/slab number"
+            print "     y_dim           dimension of y projection"
+            print "     z_dim           dimension of z realization"
+            print "     step_number     target step number to enumerate"
+            print "     s/p             flag to run it serial or parallel"
+            print
+            return
+        else:
+            flagg = args[4]
+            args = args[:-1]
+            args = [int(x) for x in args]
+            
+            if flagg == 's' or flagg == 'S':
+                flag = True
+            elif flagg == 'p' or flagg == 'P':
+                flag = False
+            else:
+                print
+                print "Make the last argument s or p for serial or parallel"
+                print "Or type python msnAlgRunner.py -h for more help!"
+                print
+                return
+            
+    except Exception:
+            print
+            print "Type "
+            print "python msnAlgRunner.py -h"
+            print "for more help!"
+            print
+            return
+    runAlgorithm(args[0], args[1], args[2], args[3], flag)
         
+    
 if __name__ == "__main__":
-    runAlgorithm(18, 2, 2)
-
-    
-        
-       
-
-    
-    """
-    # non parallel code
-    listOfAllGraphs = []
-    weightedList = []
-    knotDiags = []
-    
-    listOfAllGraphs = enumerateAllGraphs(xDim, yDim)
-    print len(listOfAllGraphs)
-    for xx in listOfAllGraphs:
-        weightedList += enumerateAllWeightedGraphs(xx, xDim, yDim, 1, chart)
-    print len(weightedList)
-    for weightedGraph in weightedList:
-        knotDiags += enumerateAllKnotDiagrams(weightedGraph, xDim, yDim, 1)
-    print len(knotDiags)"""
-        
-    #for x in knotDiags:
-    #    if x.getPath():
-    #        x.toPrint()
-    #        print x.getPath()
-    """
-    with open('2by3NaiveStrHashNonEq.txt','r') as f:
-        lines=[L[:-1] for L in f.readlines()]
-    
-    for x in listOfAllGraphs:
-        notInLines = True
-        theGraph = Graph.Graph(x.allVertices, x.allEdges, 3, 3)
-        for eqX in x.generateEqClass():
-            newGraph = Graph.Graph(eqX.allVertices, eqX.allEdges, 3, 3)
-            if str(newGraph.__hash__()) in lines:
-                notInLines = False
-        if notInLines:
-            theGraph.toPrint()
-    print 'length is: ' + str(len(listOfAllGraphs))
-    #weightedList = []    
-    #chart = makeChart(18, xDim, yDim)
-    
-    
-    with open('2by3NaiveStrHashNonEq.txt','r') as f:
-        lines=[L[:-1] for L in f.readlines()]
-    for hashN in theSet.keys():
-        hashS = str(hashN)
-        if hashS not in lines:
-            #if theSet[hashN] not in alreadyPrinted:
-            theSet[hashN].toPrint()
-    for line in lines:
-        #if line[0] == ">" or line[0] == "<":
-        #    inSet = False
-        try:
-            #if line[0] == ">" and isinstance(int(line[3]), int):
-            if theSet[int(line)] == 0:
-                theSet[int(line[2:])].toPrint()
-            except ValueError:
-                print 'errorred'"""
-                
-    """
-    for i in range(len(listOfAllGraphs)):
-        weightedList += enumerateAllWeightedGraphs(listOfAllGraphs[i], xDim, yDim, 18, chart)
-    
-    for x in weightedList:
-        x.toPrint()
-    
-    l = len(listOfAllGraphs)
-    t1 = ThreadGraphs(listOfAllGraphs[0:l/2])
-    t1.start()
-    t2 = ThreadGraphs(listOfAllGraphs[l/2+1:l])
-    t2.start()
-    
-            #testGraph = hashToGraph(hashNum, xDim, yDim)
-            #for x in testGraph.generateEqClass():
-            #    if x in checkSet:
-            #        inSet = True
-            #if not inSet:
-            #    testGraph.toPrint() 
-    chart = makeChart(n, xDim, yDim)
-    weightedList = enumerateAllWeightedGraphs(listOfAllGraphs[-1], xDim, yDim, 1, chart)
-    weightedList[-1].toPrint()
-    list = enumerateAllKnotDiagrams(weightedList[-1], xDim, yDim, 1)
-    count = 0
-    for x in list:
-        if x.getPath():
-            x.toPrint()
-            print x.g   etPath()"""
-
-    """
-    vertex1 = Graph.Vertex(0, 0, xDim, yDim)
-    vertex2 = Graph.Vertex(0, 1, xDim, yDim)
-    vertex3 = Graph.Vertex(1, 0, xDim, yDim)
-    vertex4 = Graph.Vertex(1, 1, xDim, yDim)
-    vertex5 = Graph.Vertex(1, 2, xDim, yDim)
-    vertex6 = Graph.Vertex(0, 2, xDim, yDim)
-    vertex7 = Graph.Vertex(0, 3, xDim, yDim)
-    vertex8 = Graph.Vertex(1, 3, xDim, yDim)
-    edge1 = Graph.Edge(vertex1, vertex2, 2, xDim, yDim)
-    edge2 = Graph.Edge(vertex1, vertex3, 1, xDim, yDim)
-    edge3 = Graph.Edge(vertex3, vertex4, 3, xDim, yDim)
-    graph0 = Graph.Graph(util.Counter(), util.Counter(), xDim, yDim)
-    graph0.addVertex(vertex1)
-    graph1 = graph0.addEdge(vertex1, vertex2)
-    
-    graph2 = graph1.addEdge(vertex3, vertex1)
-    graph3 = graph2.addEdge(vertex2, vertex4)
-    graph4 = graph3.addEdge(vertex4, vertex3)
-    graph4 = graph4.addEdge(vertex4, vertex5)
-    graph4 = graph4.addEdge(vertex4, vertex2)
-    graph4 = graph4.addEdge(vertex2, vertex6)
-    graph5 = graph4
-    graph4 = graph4.addEdge(vertex5, vertex6)
-    graph6 = graph3.addEdge(vertex3, vertex4)
-    graph6 = graph6.addEdge(vertex2, vertex6)
-    graph6 = graph6.addEdge(vertex6, vertex7)
-    graph6 = graph6.addEdge(vertex8, vertex7)
-    #graph6 = graph6.addEdge(vertex8, vertex5)
-    chart = makeChart(n, xDim, yDim)
-    weightedList = enumerateAllWeightedGraphs(graph4, 3, 1, 1, chart)
-    
-    list = enumerateAllKnotDiagrams(graph4, xDim, yDim, 1)
-    for x in list:
-        if x.getPath():
-            x.toPrint()
-            print x.getPath()
-    graph4.toPrint()
-    knotdiagram1 = Graph.KnotDiagram(util.Counter(), util.Counter(), xDim, yDim)
-    kde1 = Graph.DiagramEdge(vertex1, vertex2, xDim, yDim , 0)
-    kde2 = Graph.DiagramEdge(vertex1, vertex2, xDim, yDim , 0)
-    knotdiag2 = knotdiagram1.addEdge(kde1)
-    kde3 = Graph.DiagramEdge(vertex2, vertex4, xDim, yDim , 1)
-    kde4 = Graph.DiagramEdge(vertex2, vertex4, xDim, yDim , 0)
-    
-    kde5 = Graph.DiagramEdge(vertex4, vertex3, xDim, yDim , 0)
-    kde6 = Graph.DiagramEdge(vertex1, vertex3, xDim, yDim , 0)
-    kde7 = Graph.DiagramEdge(vertex2, vertex6, xDim, yDim , 1)
-    kde8 = Graph.DiagramEdge(vertex4, vertex5, xDim, yDim , 1)
-    kde9 = Graph.DiagramEdge(vertex5, vertex6, xDim, yDim , 0)
-    
-    knotdiag2 = knotdiag2.addEdge(kde3)
-    knotdiag2 = knotdiag2.addEdge(kde4)
-    knotdiag2 = knotdiag2.addEdge(kde5)
-    knotdiag2 = knotdiag2.addEdge(kde6)
-    knotdiag2 = knotdiag2.addEdge(kde7)
-    knotdiag2 = knotdiag2.addEdge(kde8)
-    knotdiag2 = knotdiag2.addEdge(kde9)
-    #knotdiag2.toPrint()
-    #print knotdiag2.getPath()
-    graph7 = graph3.addEdge(vertex3, vertex4).translateYGraph(1)
-    graph10 = Graph.Graph(util.Counter(), util.Counter(), 1, 1)
-    graph10 = graph10.addEdge(vertex1, vertex2)
-    graph10 = graph10.addEdge(vertex1, vertex3)
-    graph10 = graph10.addEdge(vertex4, vertex3)
-    graph10 = graph10.addEdge(vertex2, vertex4)
-    graph11 = Graph.Graph(graph10.allVertices, graph10.allEdges, 1, 2)
-    graph3 = graph3.addEdge(vertex3, vertex4)"""
-  
+    main(sys.argv[1:])
           
            
-######## bad algorithm #########
-"""
-@print_timing
-def enumerateAllGraphs2(xDim, yDim):
-    #set-up to enumerate all graphs by starting with vertex at (0, 0)
-    listOfAllGraphs = []
-    listOfPaths = []
-    listOfTrees = []
-    listOfCycleGraph = []
-    setOfGraphs = set()
-    setOfAllEqGraphs = set()
-    setOfExpandedGraphs = set()
-    toBeExpandedGraphs = util.Queue()
-    v0 = Graph.Vertex(0, 0, xDim, yDim)
-    v1 = Graph.Vertex(1, 1, xDim, yDim)
-    graph0 = Graph.Graph(util.Counter(), util.Counter(), xDim, yDim)
-    graph1 = Graph.Graph(util.Counter(), util.Counter(), xDim, yDim)
-    graph0.addVertex(v0)
-    graph1.addVertex(v1)
-    toBeExpandedGraphs.push(graph0)
-    toBeExpandedGraphs.push(graph1)
-    counter = 0
-    while not toBeExpandedGraphs.isEmpty():
-        expandingGraph = toBeExpandedGraphs.pop()
-        if expandingGraph!= graph0 and expandingGraph!= graph1:
-            rotatedExpanding = expandingGraph.reflectYGraph()
-        else:
-            rotatedExpanding = None
-        if expandingGraph not in setOfExpandedGraphs or expandingGraph == graph1:
-            #expandingGraph.toPrint()
-            counter += 1
-            setOfExpandedGraphs.add(expandingGraph)
-            #consider all neighboring vertex and see if you can expand there
-            for vertex in expandingGraph.allVertices.values():
-                for neighborVertex in expandingGraph.getLegalNeighborVertex(vertex):
-                    if not expandingGraph.hasEdge(vertex, neighborVertex):
-                        newGraph = expandingGraph.addEdge(vertex, neighborVertex)
-                        #newGraph.toPrint()
-                        isNotInList = True
-                        isNotInEqClass = True
-                        if newGraph in setOfGraphs:
-                            isNotInList = False
-                        eqList = newGraph.generateEqClass()
-                        for newEqGraph in eqList:
-                            if newEqGraph in setOfAllEqGraphs:
-                                isNotInEqClass = False
-                            setOfAllEqGraphs.add(newEqGraph)
-                        if isNotInList:# and newGraph.expandible():
-                            #print newGraph.length
-                            #newGraph.toPrint()
-                            toBeExpandedGraphs.push(newGraph)
-                        if isNotInList and isNotInEqClass:
-                            listOfAllGraphs.append(newGraph)
-                            setOfGraphs.add(newGraph)
-                            toBeExpandedGraphs.push(newGraph)
-    
-   # print counter
-    return listOfAllGraphs
-"""
+######## extra stuff #########
 
 """
-@print_timing
-def enumerateAllGraphs3(xDim, yDim):
-    listOfAllGraphs = []
-    setOfGraphs = set()
-    setOfEqGraphs = set()
-    expandedGraph = set()
-    v0 = Graph.Vertex(0, 0, 1, 1)
-    graph0 = Graph.Graph(util.Counter(), util.Counter(), 1, 1)
-    graph0.addVertex(v0)
-    higherDimExpandibleGraphs = util.Queue()
-    xDimExpandibleGraphs = util.Queue()
-    toBeExpandedGraphs = util.Stack()
-    toBeExpandedGraphs.push(graph0)
-    x, y = 1, 1
-    #WLOG, we can choose to expand in the y-direction first.
-    
-    #Now expand in the x-direction
-    while y <= yDim:
-        expandibleTuple = makeYExpandibleVertices(x, y, xDim, yDim)
-        expandingTuple = makeYExpandibleVertices(x, y-1, xDim, yDim)
-        
-        expandibleXTuples = makeXExpandibleVertices(x, yDim, xDim, yDim)
-        if y == 1 and x == 1:
-            while not toBeExpandedGraphs.isEmpty():
-                expandingGraph = toBeExpandedGraphs.pop()
-                if expandingGraph not in expandedGraph:
-                    expandedGraph.add(expandingGraph)
-                    for vertex in expandingGraph.allVertices.values():
-                        for neighborVertex in expandingGraph.getLegalNeighborVertex(vertex):
-                            if not expandingGraph.hasEdge(vertex, neighborVertex):
-                                isNotInList = True
-                                isNotInEq = True
-                                newGraph = expandingGraph.addEdge(vertex, neighborVertex)
-                                biggestDimGraph2 = Graph.Graph(newGraph.allVertices, newGraph.allEdges, xDim, yDim)
-                                if isYExpandible(newGraph, expandibleTuple):
-                                    higherDimGraph2 = Graph.Graph(newGraph.allVertices, newGraph.allEdges, x, y+1)
+            path = realizeAllKnots(targetKnotDiagram, n)
+            if path:
+                checkRed = checkReducible(path)
+                if not checkRed:
+                    print path
+                else:
+                    reducibleEdges = []
+                    for count in range(len(checkRed[1])-1):
+                        coord1 = checkRed[1][count]
+                        coord2 = checkRed[1][count+1]
+                        if not (coord2[1] == coord1[1] and coord2[0] == coord1[0]):
+                            if coord1[1] == coord2[1]:
+                                if coord1[0] < coord2[0]:
+                                    tup = ((coord1[0], coord1[1]), (coord2[0], coord2[1]))
                                 else:
-                                    higherDimGraph2 = newGraph
-                                if isXExpandible(newGraph, expandibleXTuples):
-                                    xHigherDimGraph = Graph.Graph(newGraph.allVertices, newGraph.allEdges, x+1, yDim)
-                                    xDimExpandibleGraphs.push(xHigherDimGraph)
-                                if biggestDimGraph2 in setOfGraphs:
-                                    isNotInList = False
-                                for eqGraph in newGraph.generateEqClass():
-                                    biggestDimGraph = Graph.Graph(eqGraph.allVertices, eqGraph.allEdges, xDim, yDim)
-                                    if isYExpandible(eqGraph, expandibleTuple):
-                                        higherDimGraph = Graph.Graph(eqGraph.allVertices, eqGraph.allEdges, x, y+1)
-                                        higherDimExpandibleGraphs.push(higherDimGraph)
-                                    else:
-                                        higherDimGraph =  Graph.Graph(eqGraph.allVertices, eqGraph.allEdges, x, yDim)
-                                    if isXExpandible(eqGraph, expandibleXTuples):
-                                        xHigherDimGraph = Graph.Graph(eqGraph.allVertices, eqGraph.allEdges, x+1, yDim)
-                                        xDimExpandibleGraphs.push(xHigherDimGraph)
-                                    if biggestDimGraph in setOfEqGraphs:
-                                        isNotInEq = False
-                                    if biggestDimGraph not in setOfEqGraphs:
-                                        toBeExpandedGraphs.push(eqGraph)
-                                        setOfEqGraphs.add(biggestDimGraph)
-                                if isNotInList and isNotInEq:
-                                    setOfGraphs.add(biggestDimGraph2)
-                                    listOfAllGraphs.append(biggestDimGraph2)
-        else:
-            while not toBeExpandedGraphs.isEmpty():
-                expandingGraph = toBeExpandedGraphs.pop()
-                if expandingGraph not in expandedGraph:
-                    expandedGraph.add(expandingGraph)
-                    for newGraphExpanded in expandGraphY(expandingGraph, expandingTuple, y-1):
-                        biggestDimGraph2 = Graph.Graph(newGraphExpanded.allVertices, newGraphExpanded.allEdges, xDim, yDim)
-                        isNotInList = True
-                        isNotInEq = True
-                        if isYExpandible(newGraphExpanded, expandibleTuple):
-                            higherDimGraph2 = Graph.Graph(newGraphExpanded.allVertices, newGraphExpanded.allEdges, x, y+1)
-                            higherDimExpandibleGraphs.push(higherDimGraph2)
-                        else:
-                            higherDimGraph2 = Graph.Graph(newGraphExpanded.allVertices, newGraphExpanded.allEdges, x, yDim)
-                        if isXExpandible(newGraphExpanded, expandibleXTuples):
-                            xHigherDimGraph = Graph.Graph(newGraphExpanded.allVertices, newGraphExpanded.allEdges, x+1, yDim)
-                            xDimExpandibleGraphs.push(xHigherDimGraph)
-                        if higherDimGraph2 in setOfGraphs:
-                            isNotInList = False
-                        for newEqGraph in newGraphExpanded.generateEqClass():
-                            biggestDimGraph = Graph.Graph(newEqGraph.allVertices, newEqGraph.allEdges, xDim, yDim)
-                            if isYExpandible(newEqGraph, expandibleTuple):
-                                higherDimGraph = Graph.Graph(newEqGraph.allVertices, newEqGraph.allEdges, x, y+1)
-                                higherDimExpandibleGraphs.push(higherDimGraph)
+                                    tup = ((coord2[0], coord2[1]), (coord1[0], coord1[1]))
                             else:
-                                higherDimGraph = Graph.Graph(newEqGraph.allVertices, newEqGraph.allEdges, x, yDim)
-                            if isXExpandible(newEqGraph, expandibleXTuples):
-                                xHigherDimGraph = Graph.Graph(newEqGraph.allVertices, newEqGraph.allEdges, x+1, yDim)
-                                xDimExpandibleGraphs.push(xHigherDimGraph)
-                            if biggestDimGraph in setOfEqGraphs:
-                                isNotInEq = False
-                            if biggestDimGraph not in setOfEqGraphs:
-                                setOfEqGraphs.add(biggestDimGraph)
-                        if isNotInList and isNotInEq:
-                            setOfGraphs.add(biggestDimGraph2)
-                            listOfAllGraphs.append(biggestDimGraph2)
-                                
-        y += 1
-        toBeExpandedGraphs = higherDimExpandibleGraphs
-        higherDimExpandibleGraphs = util.Queue()
-        expandedGraph = set() 
-    #CODE FOR THREADING!!!!!
-    x += 1
-    testList = []
-    outputSet = setOfGraphs
-    queue = Queue.Queue()
-    while x <= xDim:
-        while not xDimExpandibleGraphs.isEmpty():
-            testGraph = xDimExpandibleGraphs.pop()
-            if testGraph not in testList:
-                testList.append(testGraph)
-            #queue.put(xDimExpandibleGraphs.pop())
-        l = len(testList)
-        expandibleXTuples = makeXExpandibleVertices(x, yDim, xDim, yDim)
-        expandingXTuples = makeXExpandibleVertices(x-1, yDim, xDim, yDim)
-        t1 = ThreadUnweightedGraphs(testList[0:l], xDimExpandibleGraphs, outputSet, setOfEqGraphs, expandingXTuples, expandibleXTuples, x, xDim, yDim)
-        t1.start()
-        t2 = ThreadUnweightedGraphs(testList[l/4:2*l/4], xDimExpandibleGraphs, outputSet, setOfEqGraphs, expandingXTuples, expandibleXTuples, x, xDim, yDim)
-        t2.start()
-        t3 = ThreadUnweightedGraphs(testList[2*l/4:3*l/4], xDimExpandibleGraphs, outputSet, setOfEqGraphs, expandingXTuples, expandibleXTuples, x, xDim, yDim)
-        t3.start()
-        t4 = ThreadUnweightedGraphs(testList[3*l/4:l], xDimExpandibleGraphs, outputSet, setOfEqGraphs, expandingXTuples, expandibleXTuples, x, xDim, yDim)
-        t4.start()
-        x+= 1
-        t1.join()
-        t2.join()
-        t3.join()
-        t4.join()
-        queue = Queue.Queue()
-    return outputSet
-    """
-
+                                if coord1[1] < coord2[1]:
+                                    tup = ((coord1[0], coord1[1]), (coord2[0], coord2[1]))
+                                else:
+                                    tup = ((coord2[0], coord2[1]), (coord1[0], coord1[1]))
+                            reducibleEdges.append(tup)
+                    if len(reducibleEdges) == 3:
+                        illegalConfig = []
+                        for reducibE in reducibleEdges:
+                            inddd = allkeys.index(reducibE)
+                            illegalConfig.append((inddd, baseArray[inddd]))
+                        setofIllegalConfigs.add(tuple(illegalConfig))
+                        print illegalConfig
+                    elif len(reducibleEdges) == 1:
+                        illegalConfig = []
+                        for ii in range(len(allkeys)):
+                            key = allkeys[ii]
+                            if key == reducibleEdges[0]:
+                                illegalConfig.append((ii, baseArray[ii]))
+                                print key
+                            elif reducibleEdges[0][0] in key or reducibleEdges[0][1] in key:  
+                                illegalConfig.append((ii, baseArray[ii]))
+                                print key
+                        setofIllegalConfigs.add(tuple(illegalConfig))
+                        print illegalConfig"""
 

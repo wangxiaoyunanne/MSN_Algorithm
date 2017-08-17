@@ -4,29 +4,28 @@ import util
 # Primitive part of Graph that represents the Vertices that make the graph
 
 class Vertex:
-    
+    #constructor, takes in an x coordinate, y coordinate, and the dimensions of the graph that this vertex belongs to
     def __init__(self, xCoord, yCoord, graphXDim, graphYDim):
         self.coordinate = (xCoord, yCoord)
         self.xCoord = xCoord
         self.yCoord = yCoord
         self.graphXDim = graphXDim
         self.graphYDim = graphYDim
-
+    #returns the coordinates, (x coordinate, y coordinate) of this vertex
     def getCoordinate(self):
         return self.coordinate
-
-    def getWeight(self):
-        return self.weight
-
+    
+    #to string method that prints the coordinates
     def __str__(self):
         return self.coordinate.__str__()
 
-    
+    # subtracts two vertex objects by the x and y coordinate and returns the difference tuple
     def subtract(self, other):
         x = self.xCoord - other.xCoord
         y = self.yCoord - other.yCoord
         return (x,y)
-
+        
+    # equals method that returns if one vertex has the same coordinates as the other
     def __eq__(self, other):
         return self.getCoordinate() == other.getCoordinate()
 
@@ -124,8 +123,6 @@ class Edge:
         newV1 = Vertex(self.v1.getCoordinate()[0], -1*self.v1.getCoordinate()[1]+self.graphYDim, self.graphXDim, self.graphYDim)
         newV2 = Vertex(self.v2.getCoordinate()[0], -1*self.v2.getCoordinate()[1]+self.graphYDim, self.graphXDim, self.graphYDim)
         newEdge = Edge(newV1, newV2, self.weight, self.graphXDim, self.graphYDim)
-        #print self, self.graphYDim
-        #print newEdge
         return newEdge
    
     def reflectY(self):
@@ -143,12 +140,12 @@ class Edge:
         return self.v1.xCoord + self.v1.yCoord+1
     
     def __str__(self):
-        list = (self.edgeCoordinates[0].__str__(), self.edgeCoordinates[1].__str__(), self.orientation)
+        list = (self.edgeCoordinates[0], self.edgeCoordinates[1], self.weight)
         return list.__str__()
     
     def __eq__(self, other):
         return self.getCoordinate() == other.getCoordinate()
-
+    
 # Graph Class
 # -------
 # The main class that will help implement the MSN Algorithm.
@@ -156,10 +153,13 @@ class Edge:
 class Graph:
     import util
     import array
-    def __init__(self, allVertices, allEdges, graphXDim, graphYDim):
+    def __init__(self, allVertices, allEdges, graphXDim, graphYDim, n):
+        import math
+        self.n = n
         self.vertexEdgeMatrix = dict()
         self.allVertices = allVertices
-        self.allEdges = allEdges
+        self.vertexCounter = util.Counter()
+        self.allEdges = util.Counter()
         self.graphXDim = graphXDim
         self.graphYDim = graphYDim
         self.length = 0
@@ -167,15 +167,41 @@ class Graph:
         for x in range(graphXDim*(graphYDim+1) + graphYDim*(graphXDim+1)):
             self.edgeArray.append(0)
         self.unweighted_a = 0
-        self.unweighted_c = 0
+        self.unweighted_b = 0
         self.a = 0
         self.b = 0
         self.c = 0
-        
-        for edge in self.allEdges:
-            theEdge = self.allEdges[edge]
-            theEdge.graphXDim = graphXDim
-            theEdge.graphYDim = graphYDim
+        self.isXFull = True
+        self.isYFull = True
+        vertXCoords = set()
+        vertYCoords = set()
+        for vert in allVertices:
+            vertXCoords.add(vert[0])
+            vertYCoords.add(vert[1])
+        for i in range(graphXDim+1):
+            if i not in vertXCoords:
+                self.isXFull = False
+                break
+        for j in range(graphYDim+1):
+            if j not in vertYCoords:
+                self.isYFull = False
+                break
+        self.score = 10*len(allEdges)
+        for edge in allEdges:
+            theEdge = allEdges[edge]
+            if theEdge.weight == self.graphYDim+1:
+                self.score += theEdge.weight*0.1
+            if theEdge.weight == (self.graphYDim+1)//2 or theEdge.weight == (self.graphYDim+2)//2:
+                self.score += theEdge.weight*0.9
+            if theEdge.weight == 1 or theEdge.weight == self.graphYDim+1:
+                self.score += theEdge.weight*0.5
+            if isinstance(theEdge,DiagramEdge):
+                newEdge = DiagramEdge(theEdge.v1, theEdge.v2, graphXDim, graphYDim, theEdge.level)
+            else:
+                newEdge = Edge(theEdge.v1, theEdge.v2, theEdge.weight, graphXDim, graphYDim)
+            self.allEdges[newEdge.getCoordinate()] = newEdge
+            self.vertexCounter[newEdge.v1.getCoordinate()] += 1
+            self.vertexCounter[newEdge.v2.getCoordinate()] += 1
             if theEdge.isLegalEdge():
                 if theEdge.v1.getCoordinate() in self.vertexEdgeMatrix:
                     self.vertexEdgeMatrix[theEdge.v1.getCoordinate()].append(theEdge)
@@ -186,20 +212,25 @@ class Graph:
                 else:
                     self.vertexEdgeMatrix[theEdge.v2.getCoordinate()] = [theEdge]
                 if theEdge.orientation == '_':
-                    self.unweighted_c += 1
-                    self.c += theEdge.weight
-                    i = edge[0][1]+edge[0][0]*(graphYDim+1)
-                elif theEdge.orientation == '|':
                     self.unweighted_a += 1
                     self.a += theEdge.weight
+                    i = edge[0][1]+edge[0][0]*(graphYDim+1)
+                elif theEdge.orientation == '|':
+                    self.unweighted_b += 1
+                    self.b += theEdge.weight
                     i = edge[0][1]+edge[0][0]*(graphYDim)+graphXDim*(graphYDim+1)
-                self.edgeArray[i] = self.allEdges[edge].weight
+                self.edgeArray[i] = allEdges[edge].weight
 
             self.length += theEdge.weight
             
-        self.b = 24 - self.a - self.c
-    
-    
+        self.c = n - self.a - self.b
+        hashValue = 0
+        
+        s = ""
+        for i in range(len(self.edgeArray)):
+            s += str(self.edgeArray[i])
+        self.hashValue= s.__hash__()
+
     def isLegalVertex(self, vertex):
         return vertex.xCoord >= 0 and vertex.xCoord <= self.graphXDim and vertex.yCoord >= 0 and vertex.yCoord <= self.graphYDim
     
@@ -214,7 +245,11 @@ class Graph:
             if self.isLegalVertex(vertex):
                 listOfLegalNeghbors.append(vertex)
         return listOfLegalNeghbors
-                
+    
+    #checks if this graph is connected
+    #def isConnected(self):
+        
+    
     #Adds a Vertex to the graph
     def addVertex(self,vertex):
         if self.isLegalVertex(vertex):
@@ -224,6 +259,14 @@ class Graph:
     def addEdge(self, edge):
         return addEdge(self, edge.v1, edge.v2)
     
+    def imm_addEdge(self, edge):
+        if edge.isLegalEdge():  
+            if edge.getCoordinate() not in self.allEdges:
+                self.allVertices[edge.v2.getCoordinate()] = edge.v2
+                if edge.v1.getCoordinate() not in self.allVertices:
+                    self.allVertices[edge.v1.getCoordinate()] = edge.v1
+                self.allEdges[edge.getCoordinate()] = edge
+
     #Given two vertices, add an edge to the graph, unless it is an illegal edge
     def addEdge(self, vertex1, vertex2):
         edge = Edge(vertex1, vertex2, 1, self.graphXDim, self.graphYDim)
@@ -238,7 +281,7 @@ class Graph:
             else:
                 repEdge = Edge(vertex1, vertex2, newAllEdges[edge.getCoordinate()].weight+1, self.graphXDim, self.graphYDim)
                 newAllEdges[repEdge.getCoordinate()] = repEdge
-        newGraph = Graph(newAllVertices, newAllEdges, self.graphXDim, self.graphYDim)
+        newGraph = Graph(newAllVertices, newAllEdges, self.graphXDim, self.graphYDim, self.n)
         return newGraph
 
     def hasEdge(self, vertex1, vertex2):
@@ -263,13 +306,13 @@ class Graph:
         for edge in self.allEdges:
             newEdge = self.allEdges[edge].rotateEdge(degree)
             newEdges[newEdge.getCoordinate()] = newEdge
-        newGraph = Graph(self.allVertices, newEdges, self.graphXDim, self.graphYDim)
-        newGraph.refitGraph()
-                
+        newGraph = Graph(self.allVertices, newEdges, self.graphXDim, self.graphYDim, self.n)
+        newGraph=newGraph.refitGraph()
+        
         if newGraph.isLegalGraph():
             return newGraph
         else:
-             return None
+            return None
     
     def reflectXGraph(self):
         import util
@@ -280,8 +323,7 @@ class Graph:
             newEdges[newEdge.getCoordinate()] = newEdge
             newVertex[newEdge.v1.getCoordinate()] = newEdge.v1
             newVertex[newEdge.v2.getCoordinate()] = newEdge.v2
-        newGraph = Graph(newVertex, newEdges, self.graphXDim, self.graphYDim)
-
+        newGraph = Graph(newVertex, newEdges, self.graphXDim, self.graphYDim, self.n)
         if newGraph.isLegalGraph():
             return newGraph
         else:
@@ -296,7 +338,7 @@ class Graph:
             newEdges[newEdge.getCoordinate()] = newEdge
             newVertex[newEdge.v1.getCoordinate()] = newEdge.v1
             newVertex[newEdge.v2.getCoordinate()] = newEdge.v2
-        newGraph = Graph(newVertex, newEdges, self.graphXDim, self.graphYDim)
+        newGraph = Graph(newVertex, newEdges, self.graphXDim, self.graphYDim, self.n)
 
         if newGraph.isLegalGraph():
             return newGraph
@@ -309,9 +351,9 @@ class Graph:
         for edge in self.allEdges:
             newEdge = self.allEdges[edge].translateY(val)
             newEdges[newEdge.getCoordinate()] = newEdge
-        newlyMade = Graph(self.allVertices, newEdges, self.graphXDim, self.graphYDim)
-        newlyMade.refitGraph()
-        newGraph = Graph(newlyMade.allVertices, newlyMade.allEdges, self.graphXDim, self.graphYDim)
+        newlyMade = Graph(self.allVertices, newEdges, self.graphXDim, self.graphYDim, self.n)
+        newGraph=newlyMade.refitGraph()
+        #newGraph = Graph(newlyMade.allVertices, newlyMade.allEdges, self.graphXDim, self.graphYDim, self.n)
 
         if newGraph.isLegalGraph():
             return newGraph
@@ -324,18 +366,36 @@ class Graph:
         for edge in self.allEdges:
             newEdge = self.allEdges[edge].translateX(val)
             newEdges[newEdge.getCoordinate()] = newEdge
-        newlyMade = Graph(self.allVertices, newEdges, self.graphXDim, self.graphYDim)
-        newlyMade.refitGraph()
-        newGraph = Graph(newlyMade.allVertices, newlyMade.allEdges, self.graphXDim, self.graphYDim)
+        newlyMade = Graph(self.allVertices, newEdges, self.graphXDim, self.graphYDim, self.n)
+        newGraph=newlyMade.refitGraph()
+        #newGraph = Graph(newlyMade.allVertices, newlyMade.allEdges, self.graphXDim, self.graphYDim, self.n)
         if newGraph.isLegalGraph():
             return newGraph
         else:
             return None
 
-
+    def reduceGraph(self):
+        import util
+        minEdge = self.allVertices.findMinMax()
+        newEdges = util.Counter()
+        newVertices = util.Counter()
+        newXDim =minEdge[2]-minEdge[0]
+        if newXDim == 0:
+            newXDim = 1
+        newYDim =minEdge[3]-minEdge[1]
+        if newYDim == 0:
+            newYDim = 1
+        for edge in self.allEdges:
+            newVertex1 = Vertex(edge[0][0] - minEdge[0], edge[0][1] - minEdge[1], newXDim, newYDim)
+            newVertex2 = Vertex(edge[1][0] - minEdge[0], edge[1][1] - minEdge[1], newXDim, newYDim)
+            newEdge = Edge(newVertex1, newVertex2, self.allEdges[edge].weight, newXDim, newYDim)
+            newVertices[newVertex1.getCoordinate()] = newVertex1
+            newVertices[newVertex2.getCoordinate()] = newVertex2
+            newEdges[newEdge.getCoordinate()] = newEdge
+        newGraph = Graph(newVertices, newEdges, newXDim, newYDim, self.n)
+        return newGraph
+                
     def refitGraph(self):
-        if self is None:
-            return None
         import util
         disFromOriginX = 0
         disFromOriginY = 0
@@ -353,6 +413,9 @@ class Graph:
             newVertices[newVertex1.getCoordinate()] = newVertex1
             newVertices[newVertex2.getCoordinate()] = newVertex2
             newEdges[newEdge.getCoordinate()] = newEdge
+        newGraph = Graph(newVertices, newEdges, self.graphXDim, self.graphYDim, self.n)
+        return newGraph
+        """
         self.allEdges = newEdges
         self.allVertices = newVertices
         self.edgeArray = []
@@ -365,11 +428,139 @@ class Graph:
                     i = edge[0][1]+edge[0][0]*(self.graphYDim+1)
                 elif theEdge.orientation == '|':
                     i = edge[0][1]+edge[0][0]*(self.graphYDim)+self.graphXDim*(self.graphYDim+1)
-                self.edgeArray[i] = self.allEdges[edge].weight
+                self.edgeArray[i] = self.allEdges[edge].weight"""
                 
+    
+    def generateEqClassY(self):
+        maxHash = self.__hash__()
+        maxGraph = self
+        setOfGraphs = set()
+        setOfGraphs.add(self)
+        listOfGraphs = []
+        #self.toPrint()
+        newGraph = self.rotateGraph(180)
+        if newGraph is not None:
+            tempHash = newGraph.__hash__()
+            if tempHash > maxHash:
+                maxHash = tempHash
+                maxGraph = newGraph
+            setOfGraphs.add(newGraph)
+            listOfGraphs.append(newGraph)
+        for graph in listOfGraphs:
+            newGraph = graph.reflectXGraph()
+            if newGraph is not None:
+                #newGraph.toPrint()
+                tempHash = newGraph.__hash__()
+                if tempHash > maxHash:
+                    maxHash = tempHash
+                    maxGraph = newGraph
+                setOfGraphs.add(newGraph)
+        for graph in listOfGraphs:
+            newGraph = graph.reflectYGraph()
+            if newGraph is not None:
+                tempHash = newGraph.__hash__()
+                if tempHash > maxHash:
+                    maxHash = tempHash
+                    maxGraph = newGraph
+                setOfGraphs.add(newGraph)
+        return (maxGraph, setOfGraphs)
+
+    def generateEqClassX(self):
+        maxHash = self.__hash__()
+        maxGraph = self
+        setOfGraphs = set()
+        setOfGraphs.add(self)
+        listOfGraphs = []
+        newGraph = self.rotateGraph(180)
+        if newGraph is not None:
+            tempHash = newGraph.__hash__()
+            if tempHash > maxHash:
+                maxHash = tempHash
+                maxGraph = newGraph
+            setOfGraphs.add(newGraph)
+        newGraph = self.rotateGraph(90)
+        if newGraph is not None:
+            tempHash = newGraph.__hash__()
+            if tempHash > maxHash:
+                maxHash = tempHash
+                maxGraph = newGraph
+            setOfGraphs.add(newGraph)
+        newGraph = self.rotateGraph(270)
+        if newGraph is not None:
+            tempHash = newGraph.__hash__()
+            if tempHash > maxHash:
+                maxHash = tempHash
+                maxGraph = newGraph
+            setOfGraphs.add(newGraph)
+        newSet = set()
+        listOfGraphs = list(setOfGraphs)
+        for graph in listOfGraphs:
+            newGraph = graph.reflectXGraph()
+            if newGraph is not None:
+                tempHash = newGraph.__hash__()
+                if tempHash > maxHash:
+                    maxHash = tempHash
+                    maxGraph = newGraph
+        for graph in listOfGraphs:
+            newGraph = graph.reflectYGraph()
+            if newGraph is not None:
+                tempHash = newGraph.__hash__()
+                if tempHash > maxHash:
+                    maxHash = tempHash
+                    maxGraph = newGraph
+                setOfGraphs.add(newGraph)
+        return (maxGraph, setOfGraphs)
+
     
     #returns a list of equivalence classes
     def generateEqClass(self):
+        maxHash = self.__hash__()
+        maxGraph = self
+        setOfGraphs = set()
+        setOfGraphs.add(self)
+        listOfGraphs = []
+        newGraph = self.rotateGraph(180)
+        if newGraph is not None:
+            tempHash = newGraph.__hash__()
+            if tempHash > maxHash:
+                maxHash = tempHash
+                maxGraph = newGraph
+            setOfGraphs.add(newGraph)
+        newGraph = self.rotateGraph(90)
+        if newGraph is not None:
+            tempHash = newGraph.__hash__()
+            if tempHash > maxHash:
+                maxHash = tempHash
+                maxGraph = newGraph
+            setOfGraphs.add(newGraph)
+        newGraph = self.rotateGraph(270)
+        if newGraph is not None:
+            tempHash = newGraph.__hash__()
+            if tempHash > maxHash:
+                maxHash = tempHash
+                maxGraph = newGraph
+            setOfGraphs.add(newGraph)
+        newSet = set()
+        listOfGraphs = list(setOfGraphs)
+        for graph in listOfGraphs:
+            newGraph = graph.reflectXGraph()
+            if newGraph is not None:
+                tempHash = newGraph.__hash__()
+                if tempHash > maxHash:
+                    maxHash = tempHash
+                    maxGraph = newGraph
+                setOfGraphs.add(newGraph)
+        for graph in listOfGraphs:
+            newGraph = graph.reflectYGraph()
+            if newGraph is not None:
+                tempHash = newGraph.__hash__()
+                if tempHash > maxHash:
+                    maxHash = tempHash
+                    maxGraph = newGraph
+                setOfGraphs.add(newGraph)
+        return (maxGraph, setOfGraphs)
+        
+    def generateAllEqClass(self):
         listOfGraphs = set()
         listOfGraphs.add(self)
         #print 'self'
@@ -425,61 +616,26 @@ class Graph:
         newSet = set()
         return listOfGraphs
     
+    def printEdges(self):
+        s = ""
+        for edge in self.allEdges.values():
+            s += edge.__str__()
+        return s
+    
     
     def __hash__(self):
-        s = ""
-        for i in range(len(self.edgeArray)):
-            s += str(self.edgeArray[i])
-        """
-        import math
-        hashValue = 0
-        
-        for i in range(len(self.edgeArray)):
-            if not self.edgeArray[i] == 0: 
-                hashValue += math.pow(10,i)*self.edgeArray[i]
-        return int(hashValue)"""
-        
-        return s.__hash__()
+        return self.hashValue
     
     def __eq__(self, other):
-        return self.__hash__() == other.__hash__()
-    """
-    def hasCycle(self):
-        hasCycle = False
-        if self.edgeArray[0] and self.edgeArray[1] and self.edgeArray[2] and self.edgeArray[7]:
-            hasCycle = True
-        if self.edgeArray[2] and self.edgeArray[3] and self.edgeArray[4] and self.edgeArray[8]:
-            hasCycle = True
-        if self.edgeArray[4] and self.edgeArray[5] and self.edgeArray[6] and self.edgeArray[9]:
-            hasCycle = True
-        if self.edgeArray[0] and self.edgeArray[1] and self.edgeArray[3] and self.edgeArray[4] and self.edgeArray[8] and self.edgeArray[7]:
-            hasCycle = True
-        if self.edgeArray[2] and self.edgeArray[3] and self.edgeArray[5] and self.edgeArray[6] and self.edgeArray[8] and self.edgeArray[9]:
-            hasCycle = True
-        if self.edgeArray[0] and self.edgeArray[1] and self.edgeArray[3] and self.edgeArray[5] and self.edgeArray[6] and self.edgeArray[8] and self.edgeArray[9] and self.edgeArray[7]:
-            hasCycle = True
-        return hasCycle
-
-    def isTree(self):
-        isTree = False
-        if self.edgeArray[1] and self.edgeArray[2] and self.edgeArray[3]:
-            isTree = True
-        if self.edgeArray[3] and self.edgeArray[4] and self.edgeArray[5]:
-            isTree = True
-        if self.edgeArray[4] and self.edgeArray[9] and self.edgeArray[8]:
-            isTree = True
-        if self.edgeArray[2] and self.edgeArray[7] and self.edgeArray[8]:
-            isTree = True
-        return isTree
-    """
+        if self.hashValue != other.hashValue:
+            return False
+        else:
+            for edge in self.allEdges:
+                if edge not in other.allEdges:
+                    return False
+            return True
     
-    #JUST NEED TO FINISH THIS METHOD TO MAKE ALL WORK
-    def expandible(self):
-        return self.length < 10
-        #return len(self.generateEqClass()) > 2
-        #return self.unweighted_a < 1 or self.unweighted_c < 2
-        #return False
-#Time to implement WEIGHTED graphs
+    #Time to implement WEIGHTED graphs
     #Returns the valency of a vertex
     def getValence(self, vertex):
         if vertex.getCoordinate() not in self.allVertices:
@@ -492,36 +648,47 @@ class Graph:
                 
     def isLegalWeightedGraph(self):
         isLegal = True
+        # a, b, and c must be even
         if self.a % 2 == 1 or self.b % 2 == 1 or self.c % 2 == 1:
             isLegal = False
+        # a, b, and c all must be greater than 4
         if 4 > self.a or 4 > self.b or 4 > self.c:
             isLegal = False
-        if not self.a + self.b + self.c == 24:
+        # a, b, and c must add up to the total step number
+        if not self.a + self.b + self.c == self.n:
             isLegal = False
-        if self.c > self.a or self.c > self.b:
+        # proposition 3 of paper; if n > 6, then a and b must be greater than c
+        if self.a > self.c or self.a > self.b:
             isLegal = False
+        # valency of each vertex must be even
         for vertex in self.allVertices:
             if self.getValence(self.allVertices[vertex])%2 == 1:
-               # print self.getValence(self.allVertices[vertex])
-               # print "isdatright?"
                 isLegal = False
         return isLegal
         
     #helper method for Step 1 that neglects reducible graphs and graphs whose number of cycles can be increased by a zero move
     #Proposition 2 under Theorem 1 in the paper
-    def isReducible(self):
+    def isReducible(self, slabNum):
         isReducible = False
         for edge in self.allEdges:
             theEdge = self.allEdges[edge]
             val1 = self.getValence(theEdge.v1)
             val2 = self.getValence(theEdge.v2)
-            if (2*theEdge.weight > val1 and 2*theEdge.weight >= val2) or (2*theEdge.weight >= val1 and 2*theEdge.weight > val2):
+            if (2*theEdge.weight > val1 and 2*theEdge.weight >= val2) or (2*theEdge.weight >= val1 and 2*theEdge.weight > val2) or (4*theEdge.weight > val1+val2):
                 isReducible = True
+            if val1 > 2*(slabNum+1) or val2 > 2*(slabNum+1):
+                isReducible = True
+            if (self.vertexCounter[theEdge.v1.getCoordinate()] == 1 or self.vertexCounter[theEdge.v2.getCoordinate()] == 1) and theEdge.weight == (slabNum+1 - ((slabNum+1)%2)):
+                isReducible = True
+            #if (self.vertexCounter[theEdge.v1.getCoordinate()] == 1 or self.vertexCounter[theEdge.v2.getCoordinate()] == 1) and theEdge.weight%2 == 0:
+            #    isReducible = True
         return isReducible
-          
-        
                          
-#print method for visual purposes: see how graph looks like
+    # method that determines the number of crossings in the regular lattice projection (refer to page 11 of paper)
+    #def getNumberOfCrossings(self):
+        
+
+    #print method for visual purposes: see how graph looks like
     def toPrint(self):
         i = 2*self.graphYDim
         print
@@ -554,35 +721,6 @@ class Graph:
 # Knot Diagram
 # ------------
 
-"""
-#subclass of Vertex class which now has a z coordinate
-
-class ThreeDVertex(Vertex):
-    def __init__(self, xCoord, yCoord, zCoord, graphXDim, graphYDim):
-        Vertex.__init__(self, xCoord, yCoord, graphXDim, graphYDim)
-        self.zCoord = zCoord
-    
-    def getCoordinate(self):
-        return (xCoord, yCoord, zCoord)
-        
-    def isLegalVertex(self):
-        return super.isLegalVertex() and self.zCoord <= 1 and self.zCoord >= 0
-    
-    def getLegalNeighborVertex(self):
-        newVertex1 = ThreeDVertex(self.xCoord+1, self.yCoord, self.zCoord, self.graphXDim, self.graphYDim)
-        newVertex2 = ThreeDVertex(self.xCoord-1, self.yCoord, self.zCoord,  self.graphXDim, self.graphYDim)
-        newVertex3 = ThreeDVertex(self.xCoord, self.yCoord+1, self.zCoord,  self.graphXDim, self.graphYDim)
-        newVertex4 = ThreeDVertex(self.xCoord, self.yCoord-1, self.zCoord,  self.graphXDim, self.graphYDim)
-        newVertex5 = ThreeDVertex(self.xCoord, self.yCoord, self.zCoord+1,  self.graphXDim, self.graphYDim)
-        newVertex6 = ThreeDVertex(self.xCoord, self.yCoord, self.zCoord-1,  self.graphXDim, self.graphYDim)
-        listOfNeighbors = [newVertex1, newVertex2, newVertex3, newVertex4, newVertex5, newVertex6]
-        listOfLegalNeghbors = []
-        for vertex in listOfNeighbors:
-            if vertex.isLegalVertex():
-                listOfLegalNeghbors.append(vertex)
-
-        return listOfLegalNeghbors
-        """
         
 #subclass of the Edge class that now has weight of 1 and a new parameter, level
 class DiagramEdge(Edge):
@@ -614,30 +752,123 @@ class DiagramEdge(Edge):
     def __eq__(self, other):
         return self.getCoordinate() == other.getCoordinate() and self.level == other.level
 
+#class KnotDiagramSubpart(Graph):
 #subclass of the Graph class that now consists of DiagramEdges not regular Edges
 class KnotDiagram(Graph):
-    def __init__(self, allVertices, allDiagramEdges, graphXDim, graphYDim):
-        Graph.__init__(self, allVertices, allDiagramEdges, graphXDim, graphYDim)
-    
+    def __init__(self, allVertices, allDiagramEdges, graphXDim, graphYDim, n):
+        Graph.__init__(self, allVertices, util.Counter(), graphXDim, graphYDim, n)
+        self.allEdges = allDiagramEdges
+        self.vertexCounter = util.Counter()
+        self.vertexEdgeMatrix1 = util.Counter()
+        for theEdge in allDiagramEdges.values():
+            self.vertexCounter[(theEdge.v1.getCoordinate(), theEdge.level)] += 1
+            self.vertexCounter[(theEdge.v2.getCoordinate(), theEdge.level)] += 1
+            if self.vertexEdgeMatrix1[theEdge.v1.getCoordinate()] == 0:
+                self.vertexEdgeMatrix1[theEdge.v1.getCoordinate()] = [theEdge.getCoordinate()]
+            else:
+                self.vertexEdgeMatrix1[theEdge.v1.getCoordinate()].append(theEdge.getCoordinate())
+            if self.vertexEdgeMatrix1[theEdge.v2.getCoordinate()] == 0:
+                self.vertexEdgeMatrix1[theEdge.v2.getCoordinate()] = [theEdge.getCoordinate()]
+            else:
+                self.vertexEdgeMatrix1[theEdge.v2.getCoordinate()].append(theEdge.getCoordinate())
+        self.tooMany = False
+        self.illegal = False
+        self.valency1Vertices = util.Counter()
+        self.ySteps = util.Counter()
+        self.illegalVert = None
+        for vert in self.vertexCounter:
+            if self.vertexCounter[vert] > 2:
+                self.illegal = True
+                break
+            if self.vertexCounter[vert] == 1:
+                if self.valency1Vertices[vert[0]] == 0:
+                    self.valency1Vertices[vert[0]] = [vert[1]]
+                else:
+                    self.valency1Vertices[vert[0]].append(vert[1])
+        if self.illegal:
+            return
+        for valency1 in self.valency1Vertices:
+            value = self.valency1Vertices[valency1]
+            if len(value)%2 == 1:
+                self.illegal = True
+                self.illegalVert = valency1
+                break
+            else:
+                value.sort()
+                i = 0
+                while i < len(value)-1:
+                    for betwn in range(value[i+1]-value[i]-1):
+                        if self.vertexCounter[(valency1, betwn+1+value[i])] >= 1:
+                            self.illegal = True
+                            self.illegalVert = valency1
+                    if self.illegal:
+                        break
+                    if self.ySteps[valency1] == 0:
+                        self.ySteps[valency1] = [(value[i], value[i+1])]
+                    else:
+                        self.ySteps[valency1].append((value[i], value[i+1]))
+                    i += 2
+        
+    #checks if there is an illegal pattern of open vertices not at the conjunction
+    def checkIllegalLoneVertices(self, conjunction):
+        conjVerts = conjunction.getCoordinate()
+        for valence1 in self.valency1Vertices:
+            if valence1 not in conjVerts:
+                if len(self.valency1Vertices[valence1]) % 2 != 0:
+                    return self.vertexEdgeMatrix1[valence1]
+    #edge is the current edge we are at
+    #vertex is the vertex we are expanding onto
     def getConnectedEdge(self, edge, vertex, edgeList):
         vCoord = vertex
         eCoord = edge.getCoordinate()
         if not (vCoord == eCoord[0] or vCoord == eCoord[1]):
             return []
         sameLevelConnectedEdges = []
-        diffLevelConnectedEdges = []
+        awayEdges=[]
         for edgeKey in edgeList:
+            theEdge = self.allEdges[edgeKey]
+            # make sure the edge we're looking at has the same vertex
             if (vCoord == edgeKey[0] or vCoord == edgeKey[1]):
+                # if same level, then add to same level list
+                if theEdge == edge:
+                    continue
                 if  eCoord[2] == edgeKey[2]:
                     sameLevelConnectedEdges.append(self.allEdges[edgeKey])
-                elif (eCoord[2]+1)%2 == edgeKey[2]:
-                    diffLevelConnectedEdges.append(self.allEdges[edgeKey])
-        return (sameLevelConnectedEdges, diffLevelConnectedEdges)
+        if len(sameLevelConnectedEdges) == 0:
+            levelOfFar = self.valency1Vertices[vCoord]
+            try:
+                ind = levelOfFar.index(eCoord[2])
+                if self.ySteps[vCoord]:
+                    awayEdges.append(self.ySteps[vCoord][ind/2])
+            except ValueError:
+                True
+            except AttributeError:
+                True
+                        
+        return (sameLevelConnectedEdges, awayEdges)
+    
+    #return neighbor edges 
+    def getNeighborEdge(self, edge):
+        coords = edge.getCoordinate()
+        if edge.orientation == '|':
+            neighborCoord1 = ((coords[0][0]+1, coords[0][1]), (coords[1][0]+1, coords[1][1]), coords[2])
+            neighborCoord2 = ((coords[0][0]-1, coords[0][1]), (coords[1][0]-1, coords[1][1]), coords[2])
+        else:
+            neighborCoord1 = ((coords[0][0], coords[0][1]+1), (coords[1][0], coords[1][1]+1), coords[2])
+            neighborCoord2 = ((coords[0][0], coords[0][1]-1), (coords[1][0], coords[1][1]-1), coords[2])
+        neighborCoord3 = ((coords[0][0], coords[0][1]), (coords[1][0], coords[1][1]), coords[2]+1)
+        neighborCoord4 = ((coords[0][0], coords[0][1]), (coords[1][0], coords[1][1]), coords[2]-1)
+        neighbors = (neighborCoord1, neighborCoord2,neighborCoord3,neighborCoord4)  
+        keys = self.allEdges.keys()
+        output= []
+        for neighborEdge in neighbors:
+            if neighborEdge in keys:
+                output.append(neighborEdge)
+        return output
     
     #helper method to see if the final result is knot, i.e. first vertex is connected to the final vertex traversed
     def connected(self, v1, v2):
-        return (v1[0][0] == v2[0][0] and v1[0][1] == v2[0][1]) or (v1[0][0] == v2[0][0] and v1[1] == v2[1]) or (v1[0][1] == v2[0][1] and v1[1] == v2[1])
-    
+        return (v1[0] == v2[0] and v1[1] == v2[1] and abs(v1[2]-v2[2]) > 0) or (v1[0] == v2[0] and v1[2] == v2[2] and abs(v1[1]-v2[1]) == 1) or (v1[2] == v2[2] and v1[1] == v2[1] and abs(v1[0]-v2[0]) == 1) 
     #returns new Knot Diagram with the added Edge
     def addEdge(self, knotEdge):
         newAllEdges = self.allEdges.copy()
@@ -649,66 +880,149 @@ class KnotDiagram(Graph):
                 newAllVertices[knotEdge.v1.getCoordinate()] = knotEdge.v1
             if knotEdge.v2.getCoordinate() not in newAllVertices:
                 newAllVertices[knotEdge.v2.getCoordinate()] = knotEdge.v2
-        
-        newKnotDiag = KnotDiagram(newAllVertices, newAllEdges, self.graphXDim, self.graphYDim)
+        newKnotDiag = KnotDiagram(self.allVertices, newAllEdges, self.graphXDim, self.graphYDim, self.n)
         return newKnotDiag
+    
+    #check if a diagram is minus two reducible
+    def checkMinusTwoReducible(self, conjunction):
+        all_edges = self.allEdges.keys()
+        for edge in all_edges:
+            neighbors = self.getNeighborEdge(self.allEdges[edge])
+            for neighbor in neighbors:
+                if neighbor[2] == edge[2]:
+                    edge1 = ((neighbor[0][0], neighbor[0][1]), (edge[0][0], edge[0][1]), neighbor[2])
+                    edge2 = ((neighbor[1][0], neighbor[1][1]), (edge[1][0], edge[1][1]), neighbor[2])
+                    if edge1 in all_edges:
+                        return (edge, neighbor, edge1)
+                    elif edge2 in all_edges:
+                        return (edge, neighbor, edge2)
+                else:
+                    if neighbor in all_edges:
+                        conjVert = 0
+                        if conjunction is None:
+                            conj_two_verts = []
+                        else:
+                            conj_two_verts = conjunction.getCoordinate()[:2]
+                        non_conj_ind = []
+                        if edge[0] in conj_two_verts:
+                            conjVert += 1
+                            non_conj_ind = [1]
+                        if edge[1] in conj_two_verts:
+                            conjVert += 1
+                            non_conj_ind = [0]
+                        if conjVert == 2:
+                            continue
+                        else:
+                            if conjVert == 0:
+                                non_conj_ind = [0, 1]
+                            for checking_ind in non_conj_ind:
+                                if edge[checking_ind] in self.ySteps.keys():
+                                    graphHeights = self.ySteps[edge[checking_ind]]
+                                else:
+                                    continue
+                                #print neighbor
+                                heights = [edge[2], neighbor[2]]
+                                heights.sort()
+                            
+                                if tuple(heights) in graphHeights:
+                                    #print self.vertexEdgeMatrix[edge[conjVert]]
+                                    return self.vertexEdgeMatrix1[edge[checking_ind]]
+        return ()
         
     #returns the list of Vertices in traversed order
     def getPath(self):
-        if len(self.allEdges) == 0:
-            return None
-        else:
-            c_counter = 0
-            allEdgeCoordinates = self.allEdges.keys()
-            outputList = []
-            usedVertex = set()
-            currentEdge = allEdgeCoordinates[0]
-            vertex = currentEdge[0]
-            firstVertex = (vertex, currentEdge[2])
-            outputList.append((vertex[0], vertex[1], currentEdge[2]))
-            while len(allEdgeCoordinates) != 0:
-                neighborEdge = self.getConnectedEdge(self.allEdges[currentEdge], vertex, allEdgeCoordinates)
-                usedVertex.add((vertex, currentEdge[2]))
-                if len(neighborEdge[0]) > 1 and self.allEdges[currentEdge] not in neighborEdge[0]:
-                    return 0
-                elif len(neighborEdge[0]) == 0:
-                    if len(neighborEdge[1]) == 0:
-                        return 0
-                    elif len(neighborEdge[1]) > 1:
-                        return 0
-                    else:
-                        currentEdge = neighborEdge[1][0].getCoordinate()
-                        c_counter += 1
-                else:
-                    currentEdge = neighborEdge[0][0].getCoordinate()
-                    newVertex1 = (currentEdge[0], currentEdge[2])
-                    newVertex2 = (currentEdge[1], currentEdge[2])
-                    if newVertex1 not in usedVertex and newVertex2 not in usedVertex:
-                        vertex = currentEdge[0]
-                        usedVertex.add((vertex, currentEdge[2]))
-                    elif newVertex1 in usedVertex and newVertex2 in usedVertex:
-                        if len(allEdgeCoordinates) != 1:
-                            return 0
-                        else:
-                            finalVertex = (vertex, currentEdge[2])
-                            if self.connected(firstVertex, finalVertex):
-                                return outputList
-                            else:
-                                return 0
-                    else:
-                        if newVertex1 in usedVertex:
-                            vertex = currentEdge[1]
-                        else:
-                            vertex = currentEdge[0]
-                        allEdgeCoordinates.remove(currentEdge)
-                outputList.append((vertex[0], vertex[1], currentEdge[2]))
-            finalVertex = (vertex, currentEdge[2])
-            if self.connected(firstVertex,finalVertex):
-                return outputList
+        allEdgeKeys = self.allEdges.keys()
+        pathSet = set()
+        path = []
+        currEdge = None
+        for edge in allEdgeKeys:
+            if edge[2] == 0:
+                currEdge = edge
+                allEdgeKeys.remove(edge)
+                break
+        if currEdge is None:
+            currEdge = allEdgeKeys.pop()
+        fromVertex = (currEdge[0][0], currEdge[0][1])
+        vert = (fromVertex[0], fromVertex[1], currEdge[2])
+        path.append(vert)
+        pathSet.add(vert)
+        ontoVertex = (currEdge[1][0], currEdge[1][1])
+        while len(allEdgeKeys) != 0:
+            vert = (ontoVertex[0], ontoVertex[1], currEdge[2])
+            if vert not in pathSet:
+                pathSet.add(vert)
+                path.append(vert)
             else:
                 return 0
-    
-
+            connectedEdges = self.getConnectedEdge(self.allEdges[currEdge], ontoVertex, allEdgeKeys)
+            #check if connection on the SAME LEVEL
+            if len(connectedEdges[0]) > 0:
+                currEdge = connectedEdges[0][0].getCoordinate()
+                allEdgeKeys.remove(currEdge)
+                if ontoVertex == currEdge[0]:
+                    ontoVertex = currEdge[1]
+                else:
+                    ontoVertex = currEdge[0]
+            #check if not, if we can go UP or NOT
+            elif len(connectedEdges[1]) > 0:
+                ySteps = None
+                #print connectedEdges[1]
+                for possibleConnections in connectedEdges[1]:
+                    if currEdge[2] in possibleConnections:
+                        ySteps = possibleConnections
+                        break
+                if ySteps is not None:
+                    level = currEdge[2]
+                    level_ind = ySteps.index(level)
+                    goal = ySteps[(level_ind+1)%2]
+                    while abs(level - goal) > 0:
+                        if level > goal:
+                            level -= 1
+                        if level < goal:
+                            level += 1
+                        vert = (ontoVertex[0], ontoVertex[1], level)
+                        if vert not in pathSet:
+                            pathSet.add(vert)
+                            path.append(vert)
+                        else:
+                            return 0
+                    for edge in allEdgeKeys:
+                        if edge[2] == goal:
+                            if edge[0] == ontoVertex or edge[1] == ontoVertex:
+                                currEdge = edge
+                                break
+                allEdgeKeys.remove(currEdge)
+                if ontoVertex == currEdge[0]:
+                    ontoVertex = currEdge[1]
+                else:
+                    ontoVertex = currEdge[0]
+        vert = (ontoVertex[0], ontoVertex[1], currEdge[2])
+        #vert is the final vertex. We must finalize the polygon by connecting it to first vertex
+        if vert == path[0]:
+            return path
+        if self.connected(path[0], vert):
+            if vert[2] == path[0][2] or abs(vert[2]-path[0][2]) ==1:
+                if vert not in pathSet:
+                    pathSet.add(vert)
+                    path.append(vert)
+            else:
+                distance = vert[2] - path[0][2]
+                if distance < 0:
+                    for gogogo in range(abs(distance)):
+                        newV = (vert[0], vert[1], vert[2]+gogogo)
+                        if vert not in pathSet:
+                            pathSet.add(newV)
+                            path.append(newV)
+                else:
+                    for gogogogo in range(abs(distance)):
+                        newV = (vert[0], vert[1], vert[2]-gogogogo)
+                        if newV not in pathSet:
+                            pathSet.add(newV)
+                            path.append(newV)
+            return path
+        else:
+            return 0
+    #printing method
     def toPrint(self):
         levels = ("d","u")
         i = 2*self.graphYDim
@@ -758,4 +1072,10 @@ class KnotDiagram(Graph):
             i -= 1
         print
         print
-
+        
+        
+    def Projection(self):
+        projected = Graph(util.Counter(), util.Counter(), self.graphXDim, self.graphYDim, self.n)
+        for edge in self.allEdges.values():
+            projected = projected.addEdge(edge.v1, edge.v2)
+        return projected
