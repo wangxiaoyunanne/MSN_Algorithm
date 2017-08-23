@@ -769,13 +769,14 @@ def enumerateAllKnotDiagrams(givenWeightedGraph, xDim, yDim, slabNum, n, edgeBan
             targetKnotDiagram = Graph.KnotDiagram(givenWeightedGraph.allVertices, KnotDiagramEdges, xDim, yDim, n)
             #print targetKnotDiagram.toPrint()
             #f = open('tarKD.txt','a')
-            print >> targetKnotDiagram.toPrint()
+            print  targetKnotDiagram.allEdges.keys()
             #f.close()
-
+          # write the following in another file
+            """
             path = realizeAllKnots(targetKnotDiagram, n)
             if path:
                 print path
-
+            """
 ###################### STEP THREE METHODS #########################
 # Step 3 of MSN Algorithm: realize all valid Knot Diagrams into actual Knots
 
