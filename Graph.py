@@ -997,9 +997,12 @@ class KnotDiagram(Graph):
                 else:
                     ontoVertex = currEdge[0]
         vert = (ontoVertex[0], ontoVertex[1], currEdge[2])
+        #print "vert "+str(vert)+"path0 "+ str(path[0]) 
         #vert is the final vertex. We must finalize the polygon by connecting it to first vertex
         if vert == path[0]:
+           # print "they equal"
             return path
+        """
         if self.connected(path[0], vert):
             if vert[2] == path[0][2] or abs(vert[2]-path[0][2]) ==1:
                 if vert not in pathSet:
@@ -1022,6 +1025,7 @@ class KnotDiagram(Graph):
             return path
         else:
             return 0
+        """
     #printing method
     def toPrint(self):
         levels = ("d","u")

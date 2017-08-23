@@ -11,14 +11,14 @@ import time
 import Queue
 import threading
 import numpy
-from mpi4py import MPI
+#from mpi4py import MPI
 import itertools
 import argparse
 import collections
 import os
 import re
 import sys
-
+import pickle
 ###### EXTRA METHODS ######
 def extractListOfEdges(listOfEdgeStr):
     outputList = []
@@ -767,6 +767,11 @@ def enumerateAllKnotDiagrams(givenWeightedGraph, xDim, yDim, slabNum, n, edgeBan
             accessCounter+=1
         if not broken:
             targetKnotDiagram = Graph.KnotDiagram(givenWeightedGraph.allVertices, KnotDiagramEdges, xDim, yDim, n)
+            #print targetKnotDiagram.toPrint()
+            #f = open('tarKD.txt','a')
+            print >> targetKnotDiagram.toPrint()
+            #f.close()
+
             path = realizeAllKnots(targetKnotDiagram, n)
             if path:
                 print path
@@ -795,7 +800,7 @@ def checkReducible(path):
     
 def realizeAllKnots(givenKnotDiagram, n):
     path = givenKnotDiagram.getPath()
-    if path!=0 and len(path) == n and not checkReducible(path):
+    if path!=0 :
         return path
     else:
         return 0
@@ -842,8 +847,8 @@ def runAlgorithm(xDim, yDim, slabNum, n, serialFlag):
             weightedList.extend(enumerateAllWeightedGraphs(ugraph, xDim, yDim, slabNum, chart, n)) 
         print "Total number of weighted graphs enumerated: " + len(weightedList).__str__()
         for wgraph in weightedList:
-            #print wgraph.printEdges()
-            #wgraph.toPrint()
+           # print wgraph.printEdges()
+           # wgraph.toPrint()
             # Node ID is 0 for serial version
             enumerateAllKnotDiagrams(wgraph, xDim, yDim, slabNum, n, edgeBank, edgeIndex)
         #"""
