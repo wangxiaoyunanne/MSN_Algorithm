@@ -70,17 +70,17 @@ class Edge
     Edge (void) {}
     ~Edge (void) {}
 // initialize edges
-    void _init_ (Vertex vert1, Vertex vert2, int level);
+    void _init_ (Vertex vert1, Vertex vert2, int lev);
     void merge(Edge &edge1, Edge edge2);
 };//Edge
 
-void Edge ::_init_ (Vertex vert1, Vertex vert2, int level){
+void Edge ::_init_ (Vertex vert1, Vertex vert2, int lev){
          v1 = vert1; 
          v2 = vert2; 
          //weight = weight;
          //graphXDim = graphx;
          //graphYDim =  graphy; 
-         level = level;
+         level = lev;
      //int * substractVertex = vert2.substract(vert2);
      
      }//initial
@@ -165,24 +165,26 @@ int main ()
     vector < Vertex> vertices ;
     vertices.push_back(V1); 
     //vertices.pop();
-    cout<<"size of vertices "<< vertices.size()<<endl;
+   // cout<<"size of vertices "<< vertices.size()<<endl;
     cout<<V1.xCoord<<V1.yCoord<<endl;
     V2._init_(1,3);
     V3._init_(2,2) ;
 //    int * v12 = V2.substract(V3);
    // cout<<v12[0]<<v12[1]<<endl;
-    cout<<V1._eq_(V2)<<endl;
+   // cout<<V1._eq_(V2)<<endl;
     int level = 0;
     Edge edge1, edge2;
     edge1._init_(V1,V2,level);
     edge2._init_(V1,V3,level);
-    cout<<edge1.v1.xCoord<<endl;
+    cout<<"level of edge "<<edge1.level<<endl;
     Edge newE;
     cout<<"can merge ?"<<canMerge(edge1,edge2)<<endl;
     edge1.merge(edge1,edge2);
-    cout<<edge1.v1.xCoord<<edge1.v1.yCoord<<edge1.v2.xCoord<<edge1.v2.yCoord <<endl;
+    cout<<edge1.v1.xCoord<<edge1.v1.yCoord<<edge1.v2.xCoord<<edge1.v2.yCoord <<edge1.level<<endl;
     // get edge array
-    vector <Edge>  edges;
+
+
+vector <Edge>  edges;
     //cout<<"merge E"<< newE.v1.xCoord<<newE.v1.yCoord<<endl; 
 //
 // testing input 
@@ -211,6 +213,7 @@ while (str[i]!= ']')
   vertices.push_back(V2);
   Edge edge;
   edge._init_(V1,V2, level);
+  cout<< "this edge is "<<edge.level<<endl;
   edges.push_back(edge);
   // number of distinct levels.
   // get how many different levels there are. 
@@ -221,6 +224,7 @@ while (str[i]!= ']')
   
 }
 cout<<"# edges"<< edges.size()<<endl;
+
 cout<<levelList.size()<<endl;
 //    cout<<str[0]<<endl;
 vector<int>::iterator iter;
@@ -239,7 +243,10 @@ for (iter=levelList.begin()+1; iter!=levelList.end(); iter++)
 std::cout << '\n';
 //end of get unique levels 
 
-//vector<Edge> :: iterator iter_E;
+vector<Edge> :: iterator iter_E;
+for (iter_E= edges.begin(); iter_E != edges.end(); iter_E ++)
+    //cout<<iter_E -> level;
+
 //group edges by levels. 
 for (iter= diffLevels.begin(); iter!= diffLevels.end(); iter++)
 {
@@ -249,13 +256,16 @@ for (iter= diffLevels.begin(); iter!= diffLevels.end(); iter++)
 
     for (iter_E= edges.begin(); iter_E != edges.end(); iter_E ++)
     {
+        cout<<"levels" <<iter_E -> level<<currLevel <<endl;
         if (iter_E -> level == currLevel)
         {
+            cout<<"if"<<endl;
             edgeList.push_back(*iter_E);
         }  
     }//for
-    cout<<"level is "<< currLevel<<endl;
+    cout<<"level is "<< currLevel<<iter_E -> level<<endl;
     // add another iterator for edgeList
+    cout<< "edgelist size " << edgeList.size()<<endl;
     vector <Edge> :: iterator iter_E2;
     for (iter_E = edgeList.begin(); iter_E != --edgeList.end() ; iter_E++)
     { 
