@@ -8,6 +8,11 @@ using std::vector;
 using std::list;
 #include <algorithm>  
 
+#define XDIM 1
+#define YDIM 3
+#define ZDIM 3
+
+
 class Vertex {
     //    #constructor, takes in an x coordinate, y coordinate, and the dimensions of the graph that this vertex belongs to
   public:
@@ -176,9 +181,9 @@ int main ()
     Edge edge1, edge2;
     edge1._init_(V1,V2,level);
     edge2._init_(V1,V3,level);
-    cout<<"level of edge "<<edge1.level<<endl;
+//    cout<<"level of edge "<<edge1.level<<endl;
     Edge newE;
-    cout<<"can merge ?"<<canMerge(edge1,edge2)<<endl;
+//    cout<<"can merge ?"<<canMerge(edge1,edge2)<<endl;
     edge1.merge(edge1,edge2);
     cout<<edge1.v1.xCoord<<edge1.v1.yCoord<<edge1.v2.xCoord<<edge1.v2.yCoord <<edge1.level<<endl;
     // get edge array
@@ -206,14 +211,14 @@ while (str[i]!= ']')
   v22 = str[i]- '0'; i++;
   while (str[i]<'0' || str[i]> '9') { i++;}
   level = str[i]- '0'; 
-  cout<<v11<<v12<<v21<<v22<<level<<endl;
+  //cout<<v11<<v12<<v21<<v22<<level<<endl;
   V1._init_(v11,v12);
   V2._init_(v21,v22);
   vertices.push_back(V1);
   vertices.push_back(V2);
   Edge edge;
   edge._init_(V1,V2, level);
-  cout<< "this edge is "<<edge.level<<endl;
+ // cout<< "this edge is "<<edge.level<<endl;
   edges.push_back(edge);
   // number of distinct levels.
   // get how many different levels there are. 
@@ -223,7 +228,7 @@ while (str[i]!= ']')
   else i++;
   
 }
-cout<<"# edges"<< edges.size()<<endl;
+//cout<<"# edges"<< edges.size()<<endl;
 
 cout<<levelList.size()<<endl;
 //    cout<<str[0]<<endl;
@@ -242,31 +247,93 @@ for (iter=levelList.begin()+1; iter!=levelList.end(); iter++)
   }//for
 std::cout << '\n';
 //end of get unique levels 
-
+cout<<"# diff level"<< diffLevels.size()<<endl;
 vector<Edge> :: iterator iter_E;
-for (iter_E= edges.begin(); iter_E != edges.end(); iter_E ++)
+//for (iter_E= edges.begin(); iter_E != edges.end(); iter_E ++)
     //cout<<iter_E -> level;
 
 //group edges by levels. 
-for (iter= diffLevels.begin(); iter!= diffLevels.end(); iter++)
+// build a vertices table first
+int ***degTable;
+degTable = new int ** [XDIM+1];
+for (int i =0; i< XDIM+1; i++)// x  dim
+{
+    degTable[i] = new int * [YDIM+1];
+    for (int j =0; j < YDIM+1; j++) //y dim
+    {
+        degTable[i][j] = new int  [ZDIM+1];
+        for (int k =0; k < ZDIM +1 ; k++) //z dim
+        {
+            degTable[i][j][k] = 0;
+        }
+    }
+}// it gives each vertex degree
+
+
+
+for ( vector<int>::iterator iter= diffLevels.begin(); iter!= diffLevels.end(); iter++)
 {
     int currLevel = *iter;
     vector <Edge> edgeList;
     vector<Edge> :: iterator iter_E;
 
+    cout<<currLevel<<endl;
+// get a vertices list
+    vector <Vertex>  vertList;
+    vector <Vertex> :: iterator iter_V;
+// get each level edge list    
+
     for (iter_E= edges.begin(); iter_E != edges.end(); iter_E ++)
     {
-        cout<<"levels" <<iter_E -> level<<currLevel <<endl;
+//        cout<<"levels" <<iter_E -> level<<currLevel <<endl;
         if (iter_E -> level == currLevel)
         {
-            cout<<"if"<<endl;
+  //          cout<<"if"<<endl;
             edgeList.push_back(*iter_E);
+            vertList.push_back(iter_E -> v1);
+            vertList.push_back (iter_E -> v2);
         }  
     }//for
-    cout<<"level is "<< currLevel<<iter_E -> level<<endl;
+ //   cout<<"level is "<< currLevel<<iter_E -> level<<endl;
     // add another iterator for edgeList
-    cout<< "edgelist size " << edgeList.size()<<endl;
+   // cout<< "vertlist size " << vertList.size()<<endl;
+// make a table for each vertex degree
+    for (iter_V= vertList.begin(); iter_V != vertList.end(); iter_V ++)
+    {
+        int xCoord,yCoord,zCoord;
+        xCoord = iter_V -> xCoord;
+        yCoord = iter_V -> yCoord;
+        zCoord = currLevel;
+        degTable[xCoord][yCoord][zCoord] += 1;
+        
+    }
+
+// for each level, check if any vertices has degree more than 2 or all of them are 2;
+    bool all2Flag = 1;
+    for (int i =0; i< XDIM+1; i++)// x  dim
+    {
+        for (int j =0; j < YDIM+1; j++) //y dim
+        {
+            if (degTable [i][j][currLevel] >2)
+            {
+                cout<<"illegal vertex degree (greater than 2) " <<endl;
+            }
+            else if (degTable [i][j][currLevel] ==1 )
+                all2Flag = 0; // there is a vertex whose degree is not 2
+        }
+    }//for
+    
+    if (all2Flag)
+    {
+        cout<< "illegal vertex degree ( all 2)" <<endl;
+    }
+
+    // end of checking degree of vertices
+
+
     vector <Edge> :: iterator iter_E2;
+    
+/*
     for (iter_E = edgeList.begin(); iter_E != --edgeList.end() ; iter_E++)
     { 
        for (iter_E2 = edgeList.begin()+1; iter_E2 != edgeList.end(); iter_E2++ )
@@ -274,17 +341,36 @@ for (iter= diffLevels.begin(); iter!= diffLevels.end(); iter++)
            //test if the 2 edge can be merge    
            if (canMerge(*iter_E , *iter_E2 ))
            {   // merge   
-               cout<< "can merge";
+ //              cout<< "can merge";
                iter_E -> merge(*iter_E,*iter_E2);
-               cout<<"can merge"; 
-               //edgeList.erase(iter_E2);
+ //              cout<<"can merge"; 
+               cout<<iter_E->v1.xCoord<<iter_E->v1.yCoord<<iter_E->v2.xCoord
+               <<iter_E->v2.yCoord<<endl;
+               edgeList.erase(iter_E2);
            }
+           if (edgeList.size() == 1)
+              break;
        }//for
 
     }//for
+*/
+   cout<<edgeList.size()<<endl;
+   
    
 }//for
 
+/*
+    for (int i =0; i< 2; i++)// x  dim
+    {
+        for (int j =0; j < 4; j++) //y dim
+        {
+            for (int k =0; k < 4 ; k++) //z dim
+            {
+                cout<<"ijk"<<i<<j<<k<<degTable[i][j][k] <<endl;
+            }
+        }
+    }
+*/
 return 0;
 }
 
