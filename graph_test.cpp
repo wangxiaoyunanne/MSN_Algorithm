@@ -142,6 +142,82 @@ bool canMerge(Edge edge1, Edge edge2)
 
 }// canMerge
 
+bool isLegalPoly (int *** degTable )
+{
+    // check in each level if there is some vertices whose degree is > 2
+    for (int k = 0 ; k< ZDIM +1; k ++)
+    {
+        //cout<< "k = " << k <<endl;
+        bool all2Flag = 1;
+        bool all0Flag = 1;
+        int currLevel = k;
+        for (int i =0; i< XDIM+1; i++)// x  dim
+        {
+            for (int j =0; j < YDIM+1; j++) //y dim
+            {
+                if (degTable [i][j][currLevel] >2)
+                {
+                    all0Flag = 0;
+                    return false;
+                    cout<<"illegal vertex degree (greater than 2) " <<endl;
+                }
+                else if (degTable [i][j][currLevel] ==1 )
+                {
+                    all2Flag = 0; // there is a vertex whose degree is not 2
+                    all0Flag = 0;
+                }     //elseif
+                else if (degTable [i][j][currLevel] ==2 )
+                {
+                    all0Flag = 0;
+                }
+                
+            }
+        } //for
+        //cout<< "all2Flag"<< all2Flag <<endl; 
+        //cout<< "all0Flag"<< all0Flag <<endl;
+
+        // in the currlevel there is a closed loop. 
+        if (all2Flag && !all0Flag  )
+        {
+            return false;
+            cout<< "illegal vertex degree ( all 2)" <<endl;
+        }
+        
+    }// for
+
+    // cout<<"no degree >2 "<<endl;
+    // find whether the node of connected edges has neighours in other level
+    // that we can connect
+    // check if there are even number of nodes in each x-y position
+    for (int i =0; i< XDIM+1; i++)// x  dim
+    {
+        for (int j =0; j < YDIM+1; j++) //y dim
+        {
+            int numNodes = 0;
+            for (int k =0; k < ZDIM +1 ; k++) //z dim
+            {
+                if (degTable[i][j][k] == 1)
+                {
+                    numNodes += 1;
+
+                }
+            }
+            if (numNodes % 2 == 0)// means legal
+            {
+               // cout<<"can merge"<<endl;
+                // do emnumerate and connection
+                return true;
+            }
+            else
+            {
+                return false;
+                cout << "illegal number of nodes of connected edges" <<endl;
+            }
+        }
+    }
+
+    return false;
+}
 /*
 //int numLevels (Edge )
 void getConnEdges (Edge <vector> edges)
@@ -193,7 +269,7 @@ vector <Edge>  edges;
     //cout<<"merge E"<< newE.v1.xCoord<<newE.v1.yCoord<<endl; 
 //
 // testing input 
-char str[255] = "[((0, 0), (0, 1), 2), ((0, 0), (1, 0), 0), ((1, 0), (1, 1), 2), ((0, 1), (1, 1), 0), ((0, 0), (1, 0), 1), ((0, 0), (0, 1), 0), ((0, 1), (1, 1), 1), ((1, 0), (1, 1), 0), ((0, 0), (0, 1), 1), ((0, 0), (1, 0), 2), ((0, 1), (1, 1), 2), ((1, 0), (1, 1), 1)]";
+char str[255] = "[((0, 0), (0, 1), 2), ((0, 0), (1, 0), 2), ((1, 0), (1, 1), 2), ((0, 1), (0, 2), 1), ((1, 1), (1, 2), 1), ((0, 2), (0, 3), 0), ((0, 3), (1, 3), 0), ((1,3),(1,2),0)]";
 int i =0;
 int v11,v12,v21,v22;
 vector <int> levelList;
@@ -277,7 +353,7 @@ for ( vector<int>::iterator iter= diffLevels.begin(); iter!= diffLevels.end(); i
     vector <Edge> edgeList;
     vector<Edge> :: iterator iter_E;
 
-    cout<<currLevel<<endl;
+    cout<<"current level"<<currLevel<<endl;
 // get a vertices list
     vector <Vertex>  vertList;
     vector <Vertex> :: iterator iter_V;
@@ -307,7 +383,7 @@ for ( vector<int>::iterator iter= diffLevels.begin(); iter!= diffLevels.end(); i
         degTable[xCoord][yCoord][zCoord] += 1;
         
     }
-
+/*
 // for each level, check if any vertices has degree more than 2 or all of them are 2;
     bool all2Flag = 1;
     for (int i =0; i< XDIM+1; i++)// x  dim
@@ -319,7 +395,10 @@ for ( vector<int>::iterator iter= diffLevels.begin(); iter!= diffLevels.end(); i
                 cout<<"illegal vertex degree (greater than 2) " <<endl;
             }
             else if (degTable [i][j][currLevel] ==1 )
+            {
                 all2Flag = 0; // there is a vertex whose degree is not 2
+               
+            }//elseif
         }
     }//for
     
@@ -328,10 +407,11 @@ for ( vector<int>::iterator iter= diffLevels.begin(); iter!= diffLevels.end(); i
         cout<< "illegal vertex degree ( all 2)" <<endl;
     }
 
-    // end of checking degree of vertices
+ */
+   // end of checking degree of vertices
 
 
-    vector <Edge> :: iterator iter_E2;
+   // vector <Edge> :: iterator iter_E2;
     
 /*
     for (iter_E = edgeList.begin(); iter_E != --edgeList.end() ; iter_E++)
@@ -359,18 +439,41 @@ for ( vector<int>::iterator iter= diffLevels.begin(); iter!= diffLevels.end(); i
    
 }//for
 
+bool islegal = 0;
+islegal =isLegalPoly( degTable);
+cout<< "can go to enum ?? " << islegal<<endl;
 /*
-    for (int i =0; i< 2; i++)// x  dim
+// find whether the node of connected edges has neighours in other level
+// that we can connect
+// check if number of nodes in each x-y position are even
+
+    for (int i =0; i< XDIM+1; i++)// x  dim
     {
-        for (int j =0; j < 4; j++) //y dim
+        for (int j =0; j < YDIM+1; j++) //y dim
         {
-            for (int k =0; k < 4 ; k++) //z dim
+            int numNodes = 0
+            for (int k =0; k < ZDIM +1 ; k++) //z dim
             {
-                cout<<"ijk"<<i<<j<<k<<degTable[i][j][k] <<endl;
+                if (degTable[i][j][k] == 1)
+                {
+                    numNodes += 1;
+
+                }
             }
+            if (numNodes % 2 == 0)// means legal
+            {
+                // do emnumerate and connection
+                
+            }
+            else 
+            {
+                cout << "illegal number of nodes of connected edges" <<endl;
+            } 
         }
     }
 */
+// if can be enumerate all of the    
+
 return 0;
 }
 
