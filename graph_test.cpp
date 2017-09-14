@@ -64,6 +64,57 @@ void Vertex :: _init_(int x,int y ){
 
 Vertex :: ~Vertex(void) {}
 
+//Vertex2 is a 3D class 
+class Vertex2 {
+  public :
+    int xCoord;
+    int yCoord;
+    int zCoord;
+     // set value for coordinate
+    Vertex2();
+    ~Vertex2();
+    void _init_ (int x, int y, int z);
+};//vertex2
+Vertex2 :: Vertex2(void) {}
+
+void Vertex2 :: _init_(int x,int y, int z ){
+
+        xCoord = x;
+        yCoord = y;
+        zCoord = z;
+       // graphXDim = graphx;
+       // graphYDim = graphy;
+    }
+
+Vertex2 :: ~Vertex2(void) {}
+
+// vertical pairs of nodes 
+// x, y, level 1, level 2 
+class VerticalPairs {
+  public :
+    int xCoord;
+    int yCoord;
+    int level_1;
+    int level_2;
+     // set value for coordinate
+    VerticalPairs();
+    ~VerticalPairs();
+    void _init_ (int x, int y, int lev_1, int lev_2);
+};//vertical Paris
+VerticalPairs :: VerticalPairs(void) {}
+
+void VerticalPairs :: _init_(int x,int y, int lev_1, int lev_2 ){
+
+        xCoord = x;
+        yCoord = y;
+        level_1 = lev_1;
+        level_2 = lev_2;
+       // graphXDim = graphx;
+       // graphYDim = graphy;
+    }
+
+VerticalPairs :: ~VerticalPairs(void) {}
+
 class Edge 
 {//    # Orient the vertices so that an edge has a left to right orientation or bottom to up orientation
   public:
@@ -472,7 +523,72 @@ cout<< "can go to enum ?? " << islegal<<endl;
         }
     }
 */
-// if can be enumerate all of the    
+// if can be enumerate all of the
+// possible pairs means possible nodes that can be paired   
+if (islegal)
+{
+    vector<int> **possible_pairs ;
+    possible_pairs = new vector<int>*[XDIM + 1];
+    for (int i = 0; i <= XDIM; i++)
+        possible_pairs[i] = new vector<int>[YDIM + 1];
+    // first find nodes
+    for (int i =0; i< XDIM+1; i++)// x  dim
+    {
+        for (int j =0; j < YDIM+1; j++) //y dim
+        {
+            for (int k =0; k < ZDIM +1 ; k++) //z dim
+            {
+                if (degTable[i][j][k] == 1)
+                {
+
+                   
+                    possible_pairs[i][j].push_back (k);
+                    //cout<<"ijk"<<i<<j<<k<<endl;
+                    //cout<<possible_pairs[i][j][k]<<endl;
+                }
+            }  
+         }
+     }//for
+  
+    vector<VerticalPairs> ** possible_connect;
+    possible_connect = new vector<VerticalPairs>*[XDIM + 1];
+    for (int i = 0; i <= XDIM; i++)
+        possible_connect[i] = new vector<VerticalPairs>[YDIM + 1];
+
+    // enumerate all possible connections
+    // possible connection is possible pairs of connections
+    for (int i =0; i<XDIM +1; i++)
+    {
+       for (int j =0; j < YDIM +1; j++)
+       {
+           vector <int> :: iterator iter_level; 
+           //cout << "size of nodes"<< possible_pairs[i][j].size()<< endl;
+           for (iter_level = possible_pairs[i][j].begin(); iter_level != possible_pairs[i][j].end(); iter_level ++   )           
+           {
+               if (possible_pairs[i][j].size() >0 )
+               {
+                   //int node_1 = possible_pairs.pop_back();
+                   for (int lev_1 = 0; lev_1 < possible_pairs[i][j].size() -1; lev_1++ )
+                       for (int lev_2 = lev_1 + 1; lev_2 < possible_pairs[i][j].size(); lev_2++)
+                       {
+                           VerticalPairs vp;
+                           int level_1, level_2;
+                           level_1 = possible_pairs[i][j][lev_1];
+                           level_2 = possible_pairs[i][j][lev_2];
+                           vp._init_ (i,j, level_1,level_2);
+                           possible_connect[i][j].push_back( vp );
+                          // cout<<vp.level_1<< vp.level_2<<endl;
+                           cout<<"pairs"<< possible_pairs[i][j][lev_1]<< possible_pairs[i][j][lev_2]<<endl;
+                       }
+                    //cout<<" # pairs"<<  possible_connect[i][j].size()<<endl;
+               }//if
+           }//for
+
+       }//for
+    } // for
+    // check
+   
+}// if
 
 return 0;
 }
