@@ -100,6 +100,8 @@ class VerticalPairs {
     VerticalPairs();
     ~VerticalPairs();
     void _init_ (int x, int y, int lev_1, int lev_2);
+    bool find (vector<VerticalPairs > VP_list   ); // find if vp is in a vector     
+    
 };//vertical Paris
 VerticalPairs :: VerticalPairs(void) {}
 
@@ -111,7 +113,22 @@ void VerticalPairs :: _init_(int x,int y, int lev_1, int lev_2 ){
         level_2 = lev_2;
        // graphXDim = graphx;
        // graphYDim = graphy;
+}
+
+bool VerticalPairs :: find  (vector<VerticalPairs > VP_list ) {
+    vector <VerticalPairs> :: iterator iter_vp ;
+    for (iter_vp = VP_list.begin(); iter_vp != VP_list.end(); iter_vp ++)
+    {
+        if (iter_vp -> xCoord == xCoord &&
+           iter_vp -> yCoord == yCoord &&
+           iter_vp -> level_2 == level_2 &&
+           iter_vp -> level_1 == level_1 )
+        {
+            return true;  
+        }
     }
+    return false;
+}
 
 VerticalPairs :: ~VerticalPairs(void) {}
 
@@ -571,14 +588,21 @@ if (islegal)
                    for (int lev_1 = 0; lev_1 < possible_pairs[i][j].size() -1; lev_1++ )
                        for (int lev_2 = lev_1 + 1; lev_2 < possible_pairs[i][j].size(); lev_2++)
                        {
+                           //vector <VerticalPairs> :: iterator iter_vp ;
+                          // iter_vp = find(possible_connect[i][j].begin(), possible_connect[i][j].end(),vp )
                            VerticalPairs vp;
                            int level_1, level_2;
                            level_1 = possible_pairs[i][j][lev_1];
                            level_2 = possible_pairs[i][j][lev_2];
                            vp._init_ (i,j, level_1,level_2);
+                           
+                         // iter_vp = find(possible_connect[i][j].begin(), possible_connect[i][j].end(),vp );
+                           if (!vp.find (possible_connect[i][j] ) )
+                           {
                            possible_connect[i][j].push_back( vp );
                           // cout<<vp.level_1<< vp.level_2<<endl;
                            cout<<"pairs"<< possible_pairs[i][j][lev_1]<< possible_pairs[i][j][lev_2]<<endl;
+                           }
                        }
                     //cout<<" # pairs"<<  possible_connect[i][j].size()<<endl;
                }//if
