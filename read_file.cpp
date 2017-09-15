@@ -18,27 +18,7 @@ int main()
   while(in) {
     in.getline(str, 255);  // delim defaults to '\n'
     //if(in) cout << str << endl;
-   // i++;
-    if (str[0] == '[')
-        {
-       // cout << str << endl;
-        int i = 1;
-            while (str[i] != ']')
-            {
-                if (str[i] == '(' & str[i+1] == '('  )
-                    { // initalize 2 vertices and 1 edge 
-                         int v11, v12,v21,v22,level;
-                         i += 2;
-                         if (str[i]<='9' & str[i] >= '0')
-                             {v11 = atoi(str[i]);
-                             i++;}
-                         else i++;
-
-                    }
-                i++;
-            }
-        }
-  }
+   // i++;:q
 
   in.close();
   cout<<i<<endl;
