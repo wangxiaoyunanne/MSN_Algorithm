@@ -384,6 +384,27 @@ void WithVerticalEdges ( int *** degTable, VerticalPairs vp)
     }
 }
 
+
+Vertex2 getNeighbor (Vertex2 curr , vector<VerticalPairs> vert_edges, vector<Edges> hori_edges, char dir)
+{
+   if (dir =="v" )
+   {
+   // look for vertical edges
+   }
+   else{
+   //look for horizonal edges
+   } 
+}
+
+//
+bool isOneLoop (vector<VerticalPairs> vert_edges, vector<Edges> hori_edges )
+{
+    start_vertex = vert_edges.pop_front(() );
+    current_vertex = start_vertex
+    return false;
+}
+
+
 int main ()
 {
     Vertex V1, V2 ,V3;
@@ -651,7 +672,9 @@ if (islegal)
     for (int i = 0; i <= XDIM; i++)
         possible_connect[i] = new vector<VerticalPairs>[YDIM + 1];
 
-    // enumerate all possible connections
+ 
+    vector <VerticalPairs> vertical_edges;
+   // enumerate all possible connections
     // possible connection is possible pairs of connections
     for (int i =0; i<XDIM +1; i++)
     {
@@ -674,9 +697,10 @@ if (islegal)
                     level_2 = possible_pairs[i][j][1];
                     vp._init_ (i,j, level_1,level_2);
                     if(!vp.find (possible_connect[i][j] ))
-                     { possible_connect[i] [j].push_back(vp); 
-                       {cout<<"pairs"<< vp.level_1 << vp.level_2<<endl;
-                        WithVerticalEdges(degTable , vp);
+                     { possible_connect[i] [j].push_back(vp); {
+                         cout<<"pairs"<< vp.level_1 << vp.level_2<<endl;
+                         WithVerticalEdges(degTable , vp);
+                         vertical_edges.push_back (vp);
                        }
                      }
                   } //if
@@ -691,6 +715,8 @@ if (islegal)
                     if(!vp1.find (possible_connect[i][j] )){
                       possible_connect[i] [j].push_back(vp1);
                       WithVerticalEdges(degTable, vp1);
+                      vertical_edges.push_back (vp1);
+
                     }
                     level_43 = possible_pairs[i][j][2];
                     level_44 = possible_pairs[i][j][3];
@@ -698,6 +724,8 @@ if (islegal)
                     if(!vp2.find (possible_connect[i][j] )){
                       possible_connect[i] [j].push_back(vp2);
                       WithVerticalEdges(degTable, vp2);
+                      vertical_edges.push_back (vp2);
+
                     }
                     
                   }       
@@ -715,7 +743,7 @@ if (islegal)
 
     // check if it is a legal polygon
     // first see whether the new connected edges has vertices whose degree is >2
-        
+    cout<<"# of vertical edges " << vertical_edges.size()<<endl; 
     if( isLegalDegree(degTable) ) // 1 means legal
     {
         // check if there are more than 1 loops
