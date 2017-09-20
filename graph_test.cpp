@@ -70,6 +70,8 @@ class Vertex2 {
     int xCoord;
     int yCoord;
     int zCoord;
+    //Vertex2  neighbor1;
+    //Vertex2  neighbor2;
      // set value for coordinate
     Vertex2();
     ~Vertex2();
@@ -87,6 +89,33 @@ void Vertex2 :: _init_(int x,int y, int z ){
     }
 
 Vertex2 :: ~Vertex2(void) {}
+
+vector<Vertex2> allVertices(int *** degTable)
+{
+    vector<Vertex2> vertical_list;
+    for (int i =0; i< XDIM+1; i++)// x  dim
+    {
+        for (int j =0; j < YDIM+1; j++) //y dim
+        {
+           // int numNodes = 0;
+           for (int k =0; k < ZDIM +1 ; k++) //z dim
+           {
+               if ( degTable[i][j][k] == 2 ) 
+               {
+                   Vertex2 vert;
+                   vert._init_(i,j,k);
+                   vertical_list.push_back(vert); 
+               }
+               
+           }
+        }
+    }
+    return vertical_list;
+}
+
+
+
+
 
 // vertical pairs of nodes 
 // x, y, level 1, level 2 
@@ -385,25 +414,68 @@ void WithVerticalEdges ( int *** degTable, VerticalPairs vp)
 }
 
 
-Vertex2 getNeighbor (Vertex2 curr , vector<VerticalPairs> vert_edges, vector<Edges> hori_edges, char dir)
+vector<Vertex2>  getNeighbor (Vertex2 curr , vector<VerticalPairs> vert_edges, vector<Edge> hori_edges)
 {
-   if (dir =="v" )
+   vector <Vertex2> result;
+   Vertex2 neighV;
+   for (unsigned int i =0; i < vert_edges.size() ;i++  )
    {
-   // look for vertical edges
-   }
-   else{
-   //look for horizonal edges
-   } 
+       int vert_x = vert_edges[i].xCoord;
+       int vert_y = vert_edges[i].yCoord;
+       int level_1 = vert_edges[i].level_1;
+       int level_2 = vert_edges[i].level_2;
+       if (curr.xCoord == vert_x && 
+           curr.yCoord == vert_y &&
+           curr.zCoord == level_1 )             
+       {
+          neighV._init_ ( vert_x,vert_y, level_2);
+          result.push_back( neighV );
+       }
+       else if(curr.xCoord == vert_x &&     
+            curr.yCoord == vert_y &&
+            curr.zCoord == level_2 )
+       {
+          neighV._init_ ( vert_x,vert_y, level_1);
+          result.push_back( neighV );
+
+       }
+
+    }// first for loop of vertical edges
+
+    for (unsigned int i=0; i < hori_edges.size(); i++)
+    {
+       int level_h = hori_edges[i].level;
+       Vertex V1, V2;
+       V1 = hori_edges[i].v1;
+       V2 = hori_edges[i].v2;
+       if (curr.xCoord ==V1.xCoord &&
+           curr.yCoord == V1.yCoord &&
+           curr.zCoord == level_h)
+       {
+          neighV._init_(V2.xCoord,V2.yCoord,level_h);
+          result.push_back(neighV);
+       }
+       else if (curr.xCoord ==V2.xCoord &&
+           curr.yCoord == V2.yCoord &&
+           curr.zCoord == level_h)
+       {
+          neighV._init_(V1.xCoord,V1.yCoord,level_h);
+          result.push_back(neighV);
+       }  
+    }// second for loop of horizontal edges
+
+    return result;
 }
 
-//
-bool isOneLoop (vector<VerticalPairs> vert_edges, vector<Edges> hori_edges )
+/*
+bool isOneLoop (vector<VerticalPairs> vert_edges, vector<Edge> hori_edges )
 {
     start_vertex = vert_edges.pop_front(() );
-    current_vertex = start_vertex
+    //current_vertex = start_vertex ;
     return false;
 }
 
+*/
 
 int main ()
 {
@@ -749,11 +821,17 @@ if (islegal)
         // check if there are more than 1 loops
         cout<<"legal in degree"<<endl;   
         int Loops ;
-
+        vector<Vertex2 > vertices_list;
+        vertices_list = allVertices(degTable);
+        cout<< "# vertices" << vertices_list.size()<<endl;
+        
         // find a path
         //just print all the vertical and horizontal edges.
-        
-    } 
+       // vector<Vertex2> test_nei =  getNeighbor(vertices_list[1], vertical_edges, edges );
+       // cout<< vertices_list[1].xCoord <<vertices_list[1].yCoord <<endl;
+       // cout<< test_nei[1].xCoord<<test_nei[1].yCoord<<endl;
+       
+    }//if 
 }// if
 
 return 0;
