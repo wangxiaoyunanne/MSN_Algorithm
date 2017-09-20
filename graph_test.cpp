@@ -368,6 +368,22 @@ vector< <intPairs> enumAllPairs (int * input, int n ) // n is # of elements of i
 }
 */
 
+void WithVerticalEdges ( int *** degTable, VerticalPairs vp)
+{
+    int x = vp.xCoord;
+    int y = vp.yCoord;
+    int lev1 = vp.level_1;
+    int lev2 = vp.level_2;
+    for (int i = lev1; i <= lev2; i++)
+    {
+       if (i == lev1 || i == lev2)
+       { degTable[x][y][i] += 1;  }
+       else
+       { degTable[x][y][i] += 2;
+       }
+    }
+}
+
 int main ()
 {
     Vertex V1, V2 ,V3;
@@ -659,8 +675,9 @@ if (islegal)
                     vp._init_ (i,j, level_1,level_2);
                     if(!vp.find (possible_connect[i][j] ))
                      { possible_connect[i] [j].push_back(vp); 
-                       cout<<"pairs"<< vp.level_1 << vp.level_2<<endl;
-
+                       {cout<<"pairs"<< vp.level_1 << vp.level_2<<endl;
+                        WithVerticalEdges(degTable , vp);
+                       }
                      }
                   } //if
                   else if ( possible_pairs[i][j].size() ==4 )
@@ -671,20 +688,23 @@ if (islegal)
                     level_41 = possible_pairs[i][j][0];
                     level_42 = possible_pairs[i][j][1];
                     vp1._init_ (i,j, level_41,level_42);
-                    if(!vp1.find (possible_connect[i][j] ))
+                    if(!vp1.find (possible_connect[i][j] )){
                       possible_connect[i] [j].push_back(vp1);
-
+                      WithVerticalEdges(degTable, vp1);
+                    }
                     level_43 = possible_pairs[i][j][2];
                     level_44 = possible_pairs[i][j][3];
                     vp2._init_ (i,j, level_43,level_44);
-                    if(!vp2.find (possible_connect[i][j] ))
+                    if(!vp2.find (possible_connect[i][j] )){
                       possible_connect[i] [j].push_back(vp2);
+                      WithVerticalEdges(degTable, vp2);
+                    }
                     
                   }       
                          // iter_vp = find(possible_connect[i][j].begin(), possible_connect[i][j].end(),vp );
                          
                       
-               cout<<" # pairs"<<  possible_connect[i][j].size() <<endl;
+                 cout<<" # pairs"<<  possible_connect[i][j].size() <<endl;
                //cout<<"pairs"<< possible_pairs[i][j][1].level_1<< possible_pairs[i][j][1].level_2<<endl;
 
                }//if
@@ -694,12 +714,12 @@ if (islegal)
     } // for
 
     // check if it is a legal polygon
-    // first see whether the new connected edges has vertices whose degree is > 2
-    
+    // first see whether the new connected edges has vertices whose degree is >2
+        
     if( isLegalDegree(degTable) ) // 1 means legal
     {
         // check if there are more than 1 loops
-           
+        cout<<"legal in degree"<<endl;   
         int Loops ;
 
         // find a path
