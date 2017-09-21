@@ -467,15 +467,30 @@ vector<Vertex2>  getNeighbor (Vertex2 curr , vector<VerticalPairs> vert_edges, v
     return result;
 }
 
-/*
-bool isOneLoop (vector<VerticalPairs> vert_edges, vector<Edge> hori_edges )
+bool isOneLoop (vector<Vertex2> vertex_list , vector<VerticalPairs> vert_edges, vector<Edge> hori_edges )
 {
-    start_vertex = vert_edges.pop_front(() );
+
+    Vertex2 start_vertex = vertex_list.back( );
+    vertex_list.pop_back();
+    Vertex2 curr_vertex = start_vertex;
     //current_vertex = start_vertex ;
-    return false;
+    while( !vertex_list.empty() )
+    {
+        vector<Vertex2> neighbors = getNeighbor(curr_vertex, vert_edges, hori_edges); 
+        if ( neighbors[0].find() )
+        {
+        }
+        else if (neighbors[1].find())
+        {
+        }
+        else 
+        {
+            return false;
+        } 
+    }
+    return true;
 }
 
-*/
 
 int main ()
 {
