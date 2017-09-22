@@ -107,15 +107,16 @@ bool Vertex2 :: find (vector<Vertex2> vertex_list)
 
 void eraseElement (vector<Vertex2> & vertex_list, Vertex2 value)
 {
-    vector <Vertex2> :: iterator iter_vt ;
-    for (iter_vt = vertex_list.begin(); iter_vt != vertex_list.end(); iter_vt ++)
+    vector <Vertex2> :: iterator iter_vt = vertex_list.begin() ;
+   // for (iter_vt = vertex_list.begin(); iter_vt != vertex_list.end(); iter_vt ++)
+    while (iter_vt != vertex_list.end())
     {
         if (iter_vt -> xCoord == value.xCoord &&
            iter_vt -> yCoord == value.yCoord &&
            iter_vt -> zCoord == value.zCoord  )
         {
-            vertex_list.erase(iter_vt);
-        }
+            iter_vt = vertex_list.erase(iter_vt); 
+        } else iter_vt ++;
             
     }
 
@@ -904,7 +905,7 @@ if (islegal)
     {
         // check if there are more than 1 loops
         cout<<"legal in degree"<<endl;   
-        int Loops ;
+        //int Loops ;
         vector<Vertex2 > vertices_list;
         vertices_list = allVertices(degTable);
         cout<< "# vertices" << vertices_list.size()<<endl;
