@@ -107,27 +107,16 @@ bool Vertex2 :: find (vector<Vertex2> vertex_list)
 
 void eraseElement (vector<Vertex2> & vertex_list, Vertex2 value)
 {
-<<<<<<< HEAD
     vector <Vertex2> :: iterator iter_vt = vertex_list.begin();
     //for (iter_vt = vertex_list.begin(); iter_vt != vertex_list.end(); iter_vt ++)
     while (iter_vt != vertex_list.end())
-=======
-    vector <Vertex2> :: iterator iter_vt ;
-    for (iter_vt = vertex_list.begin(); iter_vt != vertex_list.end(); iter_vt ++)
->>>>>>> 155f18f317c61e608b8c5d7516a01254dc0ed8fe
     {
         if (iter_vt -> xCoord == value.xCoord &&
            iter_vt -> yCoord == value.yCoord &&
            iter_vt -> zCoord == value.zCoord  )
         {
-<<<<<<< HEAD
             iter_vt = vertex_list.erase(iter_vt);
         } else iter_vt ++;
-=======
-            vertex_list.erase(iter_vt);
-        }
->>>>>>> 155f18f317c61e608b8c5d7516a01254dc0ed8fe
-            
     }
 
 }
