@@ -107,8 +107,10 @@ bool Vertex2 :: find (vector<Vertex2> vertex_list)
 
 void eraseElement (vector<Vertex2> & vertex_list, Vertex2 value)
 {
-    vector <Vertex2> :: iterator iter_vt = vertex_list.begin() ;
    // for (iter_vt = vertex_list.begin(); iter_vt != vertex_list.end(); iter_vt ++)
+
+    vector <Vertex2> :: iterator iter_vt = vertex_list.begin();
+    //for (iter_vt = vertex_list.begin(); iter_vt != vertex_list.end(); iter_vt ++)
     while (iter_vt != vertex_list.end())
     {
         if (iter_vt -> xCoord == value.xCoord &&
@@ -525,30 +527,33 @@ bool isOneLoop (vector<Vertex2> vertex_list , vector<VerticalPairs> vert_edges, 
         vector<Vertex2> neighbors = getNeighbor(curr_vertex, vert_edges, hori_edges); 
         if ( neighbors[0].find(vertex_list  ) )
         {
-            cout<< "go to neigh 0"<< endl;
+           // cout<< "go to neigh 0"<< endl;
             curr_vertex = neighbors[0];
             eraseElement (vertex_list , curr_vertex);
             possi_path.push_back(curr_vertex);
-            PrintVertices(possi_path);
-            PrintVertices(vertex_list);
+           // PrintVertices(possi_path);
+           // PrintVertices(vertex_list);
         }
         else if (neighbors[1].find(vertex_list))
         {
-            cout<< "go to neigh 1"<< endl;
+           // cout<< "go to neigh 1"<< endl;
             curr_vertex = neighbors[1];
-            cout<< "curr vertex" << curr_vertex.xCoord<<curr_vertex.yCoord<<curr_vertex.zCoord<<endl;
-            cout<< "remaining vertices"<< endl;
-            PrintVertices(vertex_list);
+           // cout<< "curr vertex" << curr_vertex.xCoord<<curr_vertex.yCoord<<curr_vertex.zCoord<<endl;
+           // cout<< "remaining vertices"<< endl;
+           // PrintVertices(vertex_list);
 
             eraseElement (vertex_list, curr_vertex);
-            cout<< "remaining vertices"<< endl;
-            PrintVertices(vertex_list);
+          //  cout<< "remaining vertices"<< endl;
+           // PrintVertices(vertex_list);
 
 
             possi_path.push_back(curr_vertex);
-            PrintVertices(possi_path);
-            PrintVertices(vertex_list);
+           // PrintVertices(possi_path);
+           // PrintVertices(vertex_list);
+          
         }
+        
+        
         else 
         {
             cout<< "not a loop"<<endl; 
@@ -556,6 +561,11 @@ bool isOneLoop (vector<Vertex2> vertex_list , vector<VerticalPairs> vert_edges, 
         } 
     
     }
+
+    cout<< "final remain code"<<endl;
+    PrintVertices ( vertex_list );
+    cout<<"possible pass" << endl;
+
     PrintVertices(possi_path);
    // if ()
     return true;
@@ -905,7 +915,7 @@ if (islegal)
     {
         // check if there are more than 1 loops
         cout<<"legal in degree"<<endl;   
-        //int Loops ;
+
         vector<Vertex2 > vertices_list;
         vertices_list = allVertices(degTable);
         cout<< "# vertices" << vertices_list.size()<<endl;
