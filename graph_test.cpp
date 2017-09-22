@@ -76,6 +76,7 @@ class Vertex2 {
     Vertex2();
     ~Vertex2();
     void _init_ (int x, int y, int z);
+    bool find (vector<Vertex2> vertex_list) ;
 };//vertex2
 Vertex2 :: Vertex2(void) {}
 
@@ -87,6 +88,39 @@ void Vertex2 :: _init_(int x,int y, int z ){
        // graphXDim = graphx;
        // graphYDim = graphy;
     }
+
+bool Vertex2 :: find (vector<Vertex2> vertex_list)
+{
+    vector <Vertex2> :: iterator iter_vt ;
+    for (iter_vt = vertex_list.begin(); iter_vt != vertex_list.end(); iter_vt ++)
+    {
+        if (iter_vt -> xCoord == xCoord &&
+           iter_vt -> yCoord == yCoord &&
+           iter_vt -> zCoord == zCoord  )
+        {
+            return true;
+        }
+    }
+
+   return false;
+}
+
+void eraseElement (vector<Vertex2> & vertex_list, Vertex2 value)
+{
+    vector <Vertex2> :: iterator iter_vt ;
+    for (iter_vt = vertex_list.begin(); iter_vt != vertex_list.end(); iter_vt ++)
+    {
+        if (iter_vt -> xCoord == value.xCoord &&
+           iter_vt -> yCoord == value.yCoord &&
+           iter_vt -> zCoord == value.zCoord  )
+        {
+            vertex_list.erase(iter_vt);
+        }
+            
+    }
+
+}
+
 
 Vertex2 :: ~Vertex2(void) {}
 
@@ -113,7 +147,15 @@ vector<Vertex2> allVertices(int *** degTable)
     return vertical_list;
 }
 
-
+void PrintVertices (vector<Vertex2> vertex_list)
+{
+    vector <Vertex2> :: iterator iter_vt ;
+    for (iter_vt = vertex_list.begin(); iter_vt != vertex_list.end(); iter_vt ++)
+    {
+        cout<<iter_vt -> xCoord<<" " << iter_vt -> yCoord<< " " << iter_vt -> zCoord<< "/";       
+    }
+    cout<< endl;
+}
 
 
 
@@ -467,27 +509,54 @@ vector<Vertex2>  getNeighbor (Vertex2 curr , vector<VerticalPairs> vert_edges, v
     return result;
 }
 
-bool isOneLoop (vector<Vertex2> vertex_list , vector<VerticalPairs> vert_edges, vector<Edge> hori_edges )
+bool isOneLoop (vector<Vertex2> vertex_list , vector<VerticalPairs> vert_edges, vector<Edge> hori_edges, vector<Vertex2> & possi_path )
 {
 
     Vertex2 start_vertex = vertex_list.back( );
     vertex_list.pop_back();
     Vertex2 curr_vertex = start_vertex;
+    possi_path.push_back(curr_vertex);
+    PrintVertices(possi_path);
     //current_vertex = start_vertex ;
     while( !vertex_list.empty() )
     {
+      //  cout<<"not empty" <<endl;
         vector<Vertex2> neighbors = getNeighbor(curr_vertex, vert_edges, hori_edges); 
-        if ( neighbors[0].find() )
+        if ( neighbors[0].find(vertex_list  ) )
         {
+            cout<< "go to neigh 0"<< endl;
+            curr_vertex = neighbors[0];
+            eraseElement (vertex_list , curr_vertex);
+            possi_path.push_back(curr_vertex);
+            PrintVertices(possi_path);
+            PrintVertices(vertex_list);
         }
-        else if (neighbors[1].find())
+        else if (neighbors[1].find(vertex_list))
         {
+            cout<< "go to neigh 1"<< endl;
+            curr_vertex = neighbors[1];
+            cout<< "curr vertex" << curr_vertex.xCoord<<curr_vertex.yCoord<<curr_vertex.zCoord<<endl;
+            cout<< "remaining vertices"<< endl;
+            PrintVertices(vertex_list);
+
+            eraseElement (vertex_list, curr_vertex);
+            cout<< "remaining vertices"<< endl;
+            PrintVertices(vertex_list);
+
+
+            possi_path.push_back(curr_vertex);
+            PrintVertices(possi_path);
+            PrintVertices(vertex_list);
         }
         else 
         {
+            cout<< "not a loop"<<endl; 
             return false;
         } 
+    
     }
+    PrintVertices(possi_path);
+   // if ()
     return true;
 }
 
@@ -839,7 +908,16 @@ if (islegal)
         vector<Vertex2 > vertices_list;
         vertices_list = allVertices(degTable);
         cout<< "# vertices" << vertices_list.size()<<endl;
-        
+        PrintVertices(vertices_list);
+        //eraseElement  (vertices_list, vertices_list[0]) ;
+        //cout<< "# vertices" << vertices_list.size()<<endl;
+        vector<Vertex2> possible_path;
+
+cout<< vertices_list.size()<< vertical_edges.size()<< edges.size()<<possible_path.size()<<endl;
+        bool num_loop =  isOneLoop(vertices_list, vertical_edges, edges,possible_path);
+        cout<< "is one loop" << num_loop<<endl; 
+       PrintVertices (vertices_list);
+       PrintVertices(possible_path);
         // find a path
         //just print all the vertical and horizontal edges.
        // vector<Vertex2> test_nei =  getNeighbor(vertices_list[1], vertical_edges, edges );
