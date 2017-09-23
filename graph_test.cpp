@@ -124,6 +124,14 @@ void eraseElement (vector<Vertex2> & vertex_list, Vertex2 value)
 
 }
 
+bool isNeighbor (Vertex2 v1, Vertex2 v2)
+{
+    int distance = abs(v1.xCoord - v2.xCoord)+ abs(v1.yCoord - v2.yCoord)+abs(v1.zCoord - v2.zCoord);
+    if (distance == 1)
+        return true;
+    else 
+        return false;
+}
 
 Vertex2 :: ~Vertex2(void) {}
 
@@ -571,6 +579,57 @@ bool isOneLoop (vector<Vertex2> vertex_list , vector<VerticalPairs> vert_edges, 
     return true;
 }
 
+vector<Vertex2> add_inner_vertices (vector <Vertex2>  path )
+{
+    Vertex2 start_vertex = path[0];
+    Vertex2 end_vertex = path.back( );
+    vector <Vertex2> whole_path;
+  //  whole_path.pushback ( start_vertex );
+    int path_length = path.size(); 
+    for(int i =0; i< path_length; i++)
+    {
+        whole_path.push_back (path[i]);
+        int next_index =  (i+1) % path_length;
+        if (abs( path[i].zCoord - path[ next_index].zCoord) >1 ) 
+        {
+            if ( path[i].zCoord > path[ next_index ].zCoord  )
+            {
+                for (int z = path[next_index].zCoord +1; z < path[i].zCoord; z++ )
+                {
+                    Vertex2 inner_v;
+                    inner_v._init_( path[next_index].xCoord, path[next_index].yCoord, z);
+                    whole_path.push_back(inner_v);
+                }
+            }
+            else
+            {
+                for (int z = path[i].zCoord +1; z < path[next_index].zCoord; z++ )
+                {
+                    Vertex2 inner_v;
+                    inner_v._init_( path[next_index].xCoord, path[next_index].yCoord, z);
+                    whole_path.push_back (inner_v);
+                }
+
+            }
+        }     
+    }
+    return whole_path;
+}
+
+bool check_reducible (vector <Vertex2> path)
+{
+    int path_length = path.size();
+    for (int i = 0; i < path_length ; i++)
+    {
+        int next_index = (i+3) % path_length;
+        if ( isNeighbor(path[i],path[next_index] ) )
+        {
+            return true ;
+        }
+    }
+    return false;
+}
+
 
 int main ()
 {
@@ -924,17 +983,21 @@ if (islegal)
         //cout<< "# vertices" << vertices_list.size()<<endl;
         vector<Vertex2> possible_path;
 
-cout<< vertices_list.size()<< vertical_edges.size()<< edges.size()<<possible_path.size()<<endl;
+//cout<< vertices_list.size()<< vertical_edges.size()<< edges.size()<<possible_path.size()<<endl;
         bool num_loop =  isOneLoop(vertices_list, vertical_edges, edges,possible_path);
         cout<< "is one loop" << num_loop<<endl; 
-       PrintVertices (vertices_list);
-       PrintVertices(possible_path);
-        // find a path
-        //just print all the vertical and horizontal edges.
-       // vector<Vertex2> test_nei =  getNeighbor(vertices_list[1], vertical_edges, edges );
-       // cout<< vertices_list[1].xCoord <<vertices_list[1].yCoord <<endl;
-       // cout<< test_nei[1].xCoord<<test_nei[1].yCoord<<endl;
-       
+        PrintVertices (vertices_list);
+        if(num_loop ){
+            PrintVertices(possible_path);
+            // get full vertices of a path
+            vector<Vertex2> whole_path = add_inner_vertices (possible_path);
+            PrintVertices(whole_path);
+            cout<< "reducible ? "<< check_reducible(whole_path)<<endl;            
+            if ( ! check_reducible(whole_path)  ) 
+            {
+                PrintVertices(whole_path);
+            }
+        }    
     }//if 
 }// if
 
