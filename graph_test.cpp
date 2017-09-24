@@ -16,11 +16,10 @@ using std::list;
 class Vertex {
     //    #constructor, takes in an x coordinate, y coordinate, and the dimensions of the graph that this vertex belongs to
   public:
-    //int coordinate[2];
+    
     int xCoord;
     int yCoord;
-    //int graphXDim;
-    ///int graphYDim;
+   
 // set value for coordinate
     Vertex();
     ~Vertex();
@@ -34,16 +33,7 @@ class Vertex {
         returnstring+= xCoord+'0'; returnstring+= yCoord+'0';
         return returnstring;
     }
-/*
-//substract
-    int * substract(Vertex other) {
-        int x = xCoord - other.xCoord;
-        int y = yCoord - other.yCoord;
-        int returnCoord[2];
-        returnCoord[0] = x; returnCoord[1] = y;
-        return returnCoord;
-    }
-*/
+
 //equal or not
     bool _eq_(Vertex other) {
         if (xCoord == other.xCoord && yCoord == other.yCoord)
@@ -58,8 +48,7 @@ void Vertex :: _init_(int x,int y ){
 
         xCoord = x;
         yCoord = y;
-       // graphXDim = graphx;
-       // graphYDim = graphy;
+       
     }
 
 Vertex :: ~Vertex(void) {}
@@ -70,12 +59,12 @@ class Vertex2 {
     int xCoord;
     int yCoord;
     int zCoord;
-    //Vertex2  neighbor1;
-    //Vertex2  neighbor2;
+    
      // set value for coordinate
     Vertex2();
     ~Vertex2();
     void _init_ (int x, int y, int z);
+    // find whether a vertex is in a vector
     bool find (vector<Vertex2> vertex_list) ;
 };//vertex2
 Vertex2 :: Vertex2(void) {}
@@ -232,13 +221,10 @@ class Edge
 void Edge ::_init_ (Vertex vert1, Vertex vert2, int lev){
          v1 = vert1; 
          v2 = vert2; 
-         //weight = weight;
-         //graphXDim = graphx;
-         //graphYDim =  graphy; 
          level = lev;
-     //int * substractVertex = vert2.substract(vert2);
      
      }//initial
+
 void Edge:: merge(Edge &edge1, Edge edge2)
 {
     //Edge mergedEdge;
@@ -335,7 +321,6 @@ bool isLegalPoly (int *** degTable )
         
     }// for
 
-    // cout<<"no degree >2 "<<endl;
     // find whether the node of connected edges has neighours in other level
     // that we can connect
     // check if there are even number of nodes in each x-y position
@@ -528,10 +513,11 @@ bool isOneLoop (vector<Vertex2> vertex_list , vector<VerticalPairs> vert_edges, 
     Vertex2 curr_vertex = start_vertex;
     possi_path.push_back(curr_vertex);
     PrintVertices(possi_path);
-    //current_vertex = start_vertex ;
+    
     while( !vertex_list.empty() )
     {
-      //  cout<<"not empty" <<endl;
+      //  test if a vertex is neighbor of current vertex
+      // if so, put this neighbor into path. 
         vector<Vertex2> neighbors = getNeighbor(curr_vertex, vert_edges, hori_edges); 
         if ( neighbors[0].find(vertex_list  ) )
         {
@@ -540,28 +526,18 @@ bool isOneLoop (vector<Vertex2> vertex_list , vector<VerticalPairs> vert_edges, 
             eraseElement (vertex_list , curr_vertex);
             possi_path.push_back(curr_vertex);
            // PrintVertices(possi_path);
-           // PrintVertices(vertex_list);
+       
         }
         else if (neighbors[1].find(vertex_list))
         {
-           // cout<< "go to neigh 1"<< endl;
+           
             curr_vertex = neighbors[1];
-           // cout<< "curr vertex" << curr_vertex.xCoord<<curr_vertex.yCoord<<curr_vertex.zCoord<<endl;
-           // cout<< "remaining vertices"<< endl;
-           // PrintVertices(vertex_list);
-
-            eraseElement (vertex_list, curr_vertex);
-          //  cout<< "remaining vertices"<< endl;
-           // PrintVertices(vertex_list);
-
-
+            eraseElement (vertex_list, curr_vertex);          
             possi_path.push_back(curr_vertex);
            // PrintVertices(possi_path);
-           // PrintVertices(vertex_list);
           
         }
-        
-        
+                
         else 
         {
             cout<< "not a loop"<<endl; 
@@ -570,12 +546,11 @@ bool isOneLoop (vector<Vertex2> vertex_list , vector<VerticalPairs> vert_edges, 
     
     }
 
-    cout<< "final remain code"<<endl;
-    PrintVertices ( vertex_list );
-    cout<<"possible pass" << endl;
-
-    PrintVertices(possi_path);
-   // if ()
+   // cout<< "final remain code"<<endl;
+   // PrintVertices ( vertex_list );
+    //cout<<"possible pass" << endl;
+   // PrintVertices(possi_path;
+ 
     return true;
 }
 
@@ -633,40 +608,17 @@ bool check_reducible (vector <Vertex2> path)
 
 int main ()
 {
-    Vertex V1, V2 ,V3;
-    V1.xCoord = 1;
-    V1.yCoord =2;
-    // get Vertex array
-    vector < Vertex> vertices ;
-    vertices.push_back(V1); 
-    //vertices.pop();
-   // cout<<"size of vertices "<< vertices.size()<<endl;
-    cout<<V1.xCoord<<V1.yCoord<<endl;
-    V2._init_(1,3);
-    V3._init_(2,2) ;
-//    int * v12 = V2.substract(V3);
-   // cout<<v12[0]<<v12[1]<<endl;
-   // cout<<V1._eq_(V2)<<endl;
-    int level = 0;
-    Edge edge1, edge2;
-    edge1._init_(V1,V2,level);
-    edge2._init_(V1,V3,level);
-//    cout<<"level of edge "<<edge1.level<<endl;
-    Edge newE;
-//    cout<<"can merge ?"<<canMerge(edge1,edge2)<<endl;
-    edge1.merge(edge1,edge2);
-    cout<<edge1.v1.xCoord<<edge1.v1.yCoord<<edge1.v2.xCoord<<edge1.v2.yCoord <<edge1.level<<endl;
-    // get edge array
 
-
+int level;
+Vertex V1, V2;
 vector <Edge>  edges;
-    //cout<<"merge E"<< newE.v1.xCoord<<newE.v1.yCoord<<endl; 
-//
 // testing input 
 char str[255] = "[((0, 0), (0, 1), 2), ((0, 0), (1, 0), 2), ((1, 0), (1, 1), 2), ((0, 1), (0, 2), 1), ((1, 1), (1, 2), 1), ((0, 2), (0, 3), 0), ((0, 3), (1, 3), 0), ((1,3),(1,2),0)]";
 int i =0;
 int v11,v12,v21,v22;
+vector < Vertex> vertices ;
 vector <int> levelList;
+
 while (str[i]!= ']')
 { 
   if(str[i]=='(' && str[i+1] =='('){
@@ -719,8 +671,7 @@ std::cout << '\n';
 //end of get unique levels 
 cout<<"# diff level"<< diffLevels.size()<<endl;
 vector<Edge> :: iterator iter_E;
-//for (iter_E= edges.begin(); iter_E != edges.end(); iter_E ++)
-    //cout<<iter_E -> level;
+
 
 //group edges by levels. 
 // build a vertices table first
@@ -764,9 +715,7 @@ for ( vector<int>::iterator iter= diffLevels.begin(); iter!= diffLevels.end(); i
             vertList.push_back (iter_E -> v2);
         }  
     }//for
- //   cout<<"level is "<< currLevel<<iter_E -> level<<endl;
-    // add another iterator for edgeList
-   // cout<< "vertlist size " << vertList.size()<<endl;
+ 
 // make a table for each vertex degree
     for (iter_V= vertList.begin(); iter_V != vertList.end(); iter_V ++)
     {
@@ -777,57 +726,7 @@ for ( vector<int>::iterator iter= diffLevels.begin(); iter!= diffLevels.end(); i
         degTable[xCoord][yCoord][zCoord] += 1;
         
     }
-/*
-// for each level, check if any vertices has degree more than 2 or all of them are 2;
-    bool all2Flag = 1;
-    for (int i =0; i< XDIM+1; i++)// x  dim
-    {
-        for (int j =0; j < YDIM+1; j++) //y dim
-        {
-            if (degTable [i][j][currLevel] >2)
-            {
-                cout<<"illegal vertex degree (greater than 2) " <<endl;
-            }
-            else if (degTable [i][j][currLevel] ==1 )
-            {
-                all2Flag = 0; // there is a vertex whose degree is not 2
-               
-            }//elseif
-        }
-    }//for
-    
-    if (all2Flag)
-    {
-        cout<< "illegal vertex degree ( all 2)" <<endl;
-    }
 
- */
-   // end of checking degree of vertices
-
-
-   // vector <Edge> :: iterator iter_E2;
-    
-/*
-    for (iter_E = edgeList.begin(); iter_E != --edgeList.end() ; iter_E++)
-    { 
-       for (iter_E2 = edgeList.begin()+1; iter_E2 != edgeList.end(); iter_E2++ )
-       {
-           //test if the 2 edge can be merge    
-           if (canMerge(*iter_E , *iter_E2 ))
-           {   // merge   
- //              cout<< "can merge";
-               iter_E -> merge(*iter_E,*iter_E2);
- //              cout<<"can merge"; 
-               cout<<iter_E->v1.xCoord<<iter_E->v1.yCoord<<iter_E->v2.xCoord
-               <<iter_E->v2.yCoord<<endl;
-               edgeList.erase(iter_E2);
-           }
-           if (edgeList.size() == 1)
-              break;
-       }//for
-
-    }//for
-*/
    cout<<edgeList.size()<<endl;
    
    
@@ -836,36 +735,7 @@ for ( vector<int>::iterator iter= diffLevels.begin(); iter!= diffLevels.end(); i
 bool islegal = 0;
 islegal =isLegalPoly( degTable);
 cout<< "can go to enum ?? " << islegal<<endl;
-/*
-// find whether the node of connected edges has neighours in other level
-// that we can connect
-// check if number of nodes in each x-y position are even
 
-    for (int i =0; i< XDIM+1; i++)// x  dim
-    {
-        for (int j =0; j < YDIM+1; j++) //y dim
-        {
-            int numNodes = 0
-            for (int k =0; k < ZDIM +1 ; k++) //z dim
-            {
-                if (degTable[i][j][k] == 1)
-                {
-                    numNodes += 1;
-
-                }
-            }
-            if (numNodes % 2 == 0)// means legal
-            {
-                // do emnumerate and connection
-                
-            }
-            else 
-            {
-                cout << "illegal number of nodes of connected edges" <<endl;
-            } 
-        }
-    }
-*/
 // if can be enumerate all of the
 // possible pairs means possible nodes that can be paired   
 if (islegal)
@@ -882,12 +752,9 @@ if (islegal)
             for (int k =0; k < ZDIM +1 ; k++) //z dim
             {
                 if (degTable[i][j][k] == 1)
-                {
-
-                   
+                {                  
                     possible_pairs[i][j].push_back (k);
                     //cout<<"ijk"<<i<<j<<k<<endl;
-                    //cout<<possible_pairs[i][j][k]<<endl;
                 }
             }  
          }
@@ -915,8 +782,7 @@ if (islegal)
                    //int node_1 = possible_pairs.pop_back();
                  if (possible_pairs[i][j].size() ==2 )
                  {
-                    //vector <VerticalPairs> :: iterator iter_vp ;
-                    // iter_vp = find(possible_connect[i][j].begin(), possible_connect[i][j].end(),vp )
+                    
                     VerticalPairs vp;
                     int level_1, level_2;
                     level_1 = possible_pairs[i][j][0];
@@ -932,7 +798,7 @@ if (islegal)
                   } //if
                   else if ( possible_pairs[i][j].size() ==4 )
                   {
-                                        // iter_vp = find(possible_connect[i][j].begin(), possible_connect[i][j].end(),vp )
+                                     
                     VerticalPairs vp1,vp2;
                     int level_41, level_42, level_43,level_44;
                     level_41 = possible_pairs[i][j][0];
@@ -954,13 +820,10 @@ if (islegal)
 
                     }
                     
-                  }       
-                         // iter_vp = find(possible_connect[i][j].begin(), possible_connect[i][j].end(),vp );
-                         
+                  }              
                       
                  cout<<" # pairs"<<  possible_connect[i][j].size() <<endl;
-               //cout<<"pairs"<< possible_pairs[i][j][1].level_1<< possible_pairs[i][j][1].level_2<<endl;
-
+              
                }//if
           } //for
 
