@@ -386,12 +386,15 @@ vector<Vertex2>  getNeighbor (Vertex2 curr , vector<VerticalPairs> vert_edges, v
 
 bool isOneLoop (vector<Vertex2> vertex_list , vector<VerticalPairs> vert_edges, vector<Edge> hori_edges, vector<Vertex2> & possi_path )
 {
+    // make sure the path is empty
+    possi_path.clear();
 
     Vertex2 start_vertex = vertex_list.back( );
     vertex_list.pop_back();
     Vertex2 curr_vertex = start_vertex;
     possi_path.push_back(curr_vertex);
     PrintVertices(possi_path);
+    
     
     while( !vertex_list.empty() )
     {
@@ -550,11 +553,140 @@ vector <int> diff_level (vector<int> levelList )
     return diffLevels;
 }// diff_level
 
-bool msnAlgRun ( vector<Edge> edges ,vector<int> diffLevels , vector<Vertex2> & path  )
+void get3Dtable  ( vector<Edge> edges ,vector<int> diffLevels , int *** degTable )
 {
-    return false;
-}
+  
+//group edges by levels. 
+    for ( vector<int>::iterator iter= diffLevels.begin(); iter!= diffLevels.end(); iter++)
+    {
+        int currLevel = *iter;
+        vector <Edge> edgeList;
+        vector<Edge> :: iterator iter_E;
 
+        //cout<<"current level"<<currLevel<<endl;
+// get a vertices list
+        vector <Vertex>  vertList;
+        vector <Vertex> :: iterator iter_V;
+    
+// get each level edge list    
+
+        for (iter_E= edges.begin(); iter_E != edges.end(); iter_E ++)
+        {
+//        cout<<"levels" <<iter_E -> level<<currLevel <<endl;
+            if (iter_E -> level == currLevel)
+            {
+  //          cout<<"if"<<endl;
+                edgeList.push_back(*iter_E);
+                vertList.push_back(iter_E -> v1);
+                vertList.push_back (iter_E -> v2);
+            }    
+        }//for
+
+       for (iter_V= vertList.begin(); iter_V != vertList.end(); iter_V ++)
+       {
+            int xCoord,yCoord,zCoord;
+            xCoord = iter_V -> xCoord;
+            yCoord = iter_V -> yCoord;
+            zCoord = currLevel;
+            degTable[xCoord][yCoord][zCoord] += 1;
+        
+       }
+
+   ///cout<<edgeList.size()<<endl;
+   
+   
+    }//for
+
+}    
+
+void find_connect_node(int *** degTable, vector<int> **possible_pairs)
+{
+    // first find nodes
+    for (int i =0; i< XDIM+1; i++)// x  dim
+    {
+        for (int j =0; j < YDIM+1; j++) //y dim
+        {
+            for (int k =0; k < ZDIM +1 ; k++) //z dim
+            {
+                if (degTable[i][j][k] == 1)
+                {                  
+                    possible_pairs[i][j].push_back (k);
+                    //cout<<"ijk"<<i<<j<<k<<endl;
+                }
+            }  
+         }
+     }//for
+} // find connect node
+
+vector <VerticalPairs> get_vertical_edges( int *** degTable , vector<int> **possible_pairs, vector<VerticalPairs> ** possible_connect  )
+{
+    vector <VerticalPairs> vertical_edges;
+   // enumerate all possible connections
+    // possible connection is possible pairs of connections
+    for (int i =0; i<XDIM +1; i++)
+    {
+       for (int j =0; j < YDIM +1; j++)
+       {
+           vector <int> :: iterator iter_level; 
+           //cout << "size of nodes"<< possible_pairs[i][j].size()<< endl;
+           for (iter_level = possible_pairs[i][j].begin(); iter_level != possible_pairs[i][j].end(); iter_level ++   )           
+           {
+               if (possible_pairs[i][j].size() >0 )
+               {
+                   //int node_1 = possible_pairs.pop_back();
+                 if (possible_pairs[i][j].size() ==2 )
+       
+                 {
+                    
+                    VerticalPairs vp;
+                    int level_1, level_2;
+                    level_1 = possible_pairs[i][j][0];
+                    level_2 = possible_pairs[i][j][1];
+                    vp._init_ (i,j, level_1,level_2);
+                    if(!vp.find (possible_connect[i][j] ))
+                     { possible_connect[i] [j].push_back(vp); {
+            //             cout<<"pairs"<< vp.level_1 << vp.level_2<<endl;
+                         WithVerticalEdges(degTable , vp);
+                         vertical_edges.push_back (vp);
+                       }
+                     }
+                  } //if
+                  else if ( possible_pairs[i][j].size() ==4 )
+                  {
+                                     
+                    VerticalPairs vp1,vp2;
+                    int level_41, level_42, level_43,level_44;
+                    level_41 = possible_pairs[i][j][0];
+                    level_42 = possible_pairs[i][j][1];
+                    vp1._init_ (i,j, level_41,level_42);
+                    if(!vp1.find (possible_connect[i][j] )){
+                      possible_connect[i] [j].push_back(vp1);
+                      WithVerticalEdges(degTable, vp1);
+                      vertical_edges.push_back (vp1);
+
+                    }//if
+                    level_43 = possible_pairs[i][j][2];
+                    level_44 = possible_pairs[i][j][3];
+                    vp2._init_ (i,j, level_43,level_44);
+                    if(!vp2.find (possible_connect[i][j] )){
+                      possible_connect[i] [j].push_back(vp2);
+                      WithVerticalEdges(degTable, vp2);
+                      vertical_edges.push_back (vp2);
+
+                    }
+                    
+                  }              
+
+           //      cout<<" # pairs"<<  possible_connect[i][j].size() <<endl;
+              
+               }//if
+          } //for
+
+       }//for
+    } // for
+
+    return vertical_edges;
+}
 
 int main ()
 {
@@ -566,8 +698,87 @@ int main ()
     
     vector<int> diffLevels;
     diffLevels = diff_level(level_list);
+
+// build a vertices table first
+    int ***degTable;
+    degTable = new int ** [XDIM+1];
+    for (int i =0; i< XDIM+1; i++)// x  dim
+    {
+        degTable[i] = new int * [YDIM+1];
+        for (int j =0; j < YDIM+1; j++) //y dim
+        {
+            degTable[i][j] = new int  [ZDIM+1];
+            for (int k =0; k < ZDIM +1 ; k++) //z dim
+            {
+                degTable[i][j][k] = 0;
+            }
+        }
+    }// it gives each vertex degree
+
+// get 3D arrary degTable
+    get3Dtable (edges,diffLevels, degTable);   
+    bool islegal = 0;
+    islegal =isLegalPoly( degTable);
+    //cout<< "can go to enum ?? " << islegal<<endl;
     
+// if can be enumerate all of the
+// possible pairs means possible nodes that can be paired   
+    if (islegal)
+    {
 
+    // initialize 2D array. 
+    // possible_pairs is 2D array, each element of array is a vector<int>
+        vector<int> **possible_pairs ;
+        possible_pairs = new vector<int>*[XDIM + 1];
+        for (int i = 0; i <= XDIM; i++)
+            possible_pairs[i] = new vector<int>[YDIM + 1];
+    // get degree = 1 node
+        find_connect_node(degTable, possible_pairs) ;
 
+    // initialize 2D array, each element is vertice pairs
+        vector<VerticalPairs> ** possible_connect;
+        possible_connect = new vector<VerticalPairs>*[XDIM + 1];
+        for (int i = 0; i <= XDIM; i++)
+            possible_connect[i] = new vector<VerticalPairs>[YDIM + 1];
+
+    // get vertical edges and change table degree
+        vector <VerticalPairs> vertical_edges =  get_vertical_edges (degTable, possible_pairs , possible_connect  ) ;
+ 
+    // 832 
+    // make sure all vertex has 0 or 2 degree
+        if( isLegalDegree(degTable) )
+        {
+            // check if there are more than 1 loops
+           // cout<<"legal in degree"<<endl;   
+
+            vector<Vertex2 > vertices_list;
+            vertices_list = allVertices(degTable);
+        //    cout<< "# vertices" << vertices_list.size()<<endl;
+         //   PrintVertices(vertices_list);
+        //eraseElement  (vertices_list, vertices_list[0]) ;
+        //cout<< "# vertices" << vertices_list.size()<<endl;
+            vector<Vertex2> possible_path;
+
+//cout<< vertices_list.size()<< vertical_edges.size()<< edges.size()<<possible_path.size()<<endl;
+            bool num_loop =  isOneLoop(vertices_list, vertical_edges, edges,possible_path);
+       // cout<< "is one loop" << num_loop<<endl; 
+           // PrintVertices (vertices_list);
+            if(num_loop ){
+              //  PrintVertices(possible_path);
+            // get full vertices of a path
+                vector<Vertex2> whole_path = add_inner_vertices (possible_path);
+                PrintVertices(whole_path);
+                cout<< "reducible ? "<< check_reducible(whole_path)<<endl;            
+                if ( ! check_reducible(whole_path)  ) 
+                {
+                PrintVertices(whole_path);
+                }
+            } // if is only 1 loop
+            
+        }// if islegaldegree
+
+    }// if islegal
+     
+       
     return 0;
 }
