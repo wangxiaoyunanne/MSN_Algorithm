@@ -383,12 +383,42 @@ vector<Vertex2>  getNeighbor (Vertex2 curr , vector<VerticalPairs> vert_edges, v
 
     return result;
 }
+// add here
+vector <Vertex2> inner_vertices ( vector<VerticalPairs> vert_edges )
+{
+    vector <Vertex2> inner_vert;
+    vector <VerticalPairs> :: iterator vp; 
+    for ( vp = vert_edges.begin() ;vp != vert_edges.end(); vp ++)
+    {
+        if ((vp->level_2 - vp->level_1) >=2  )
+        {
+            for(int lev = vp -> level_1 +1 ; lev < vp-> level_2 ; lev++ )
+            {
+                Vertex2 inner ;
+                inner._init_(vp->xCoord,vp->yCoord, lev);
+                inner_vert.push_back(inner);
+            }
+        }
+    }
+    return inner_vert;
+}
 
 bool isOneLoop (vector<Vertex2> vertex_list , vector<VerticalPairs> vert_edges, vector<Edge> hori_edges, vector<Vertex2> & possi_path )
 {
     // make sure the path is empty
     possi_path.clear();
 
+    // remove inner vertices of vertical edges first
+    vector<Vertex2> inner_vertical_vertices = inner_vertices(vert_edges);
+    PrintVertices(inner_vertical_vertices);
+    vector <Vertex2> :: iterator inner_vp;
+    
+    for(inner_vp =inner_vertical_vertices.begin(); inner_vp != inner_vertical_vertices.end(); inner_vp ++ )
+    {
+        eraseElement(vertex_list, *inner_vp);
+    }
+
+    // here we go to search neighbors
     Vertex2 start_vertex = vertex_list.back( );
     vertex_list.pop_back();
     Vertex2 curr_vertex = start_vertex;
@@ -407,7 +437,7 @@ bool isOneLoop (vector<Vertex2> vertex_list , vector<VerticalPairs> vert_edges, 
             curr_vertex = neighbors[0];
             eraseElement (vertex_list , curr_vertex);
             possi_path.push_back(curr_vertex);
-           // PrintVertices(possi_path);
+            PrintVertices(possi_path);
        
         }
         else if (neighbors[1].find(vertex_list))
@@ -416,20 +446,22 @@ bool isOneLoop (vector<Vertex2> vertex_list , vector<VerticalPairs> vert_edges, 
             curr_vertex = neighbors[1];
             eraseElement (vertex_list, curr_vertex);          
             possi_path.push_back(curr_vertex);
-           // PrintVertices(possi_path);
+            PrintVertices(possi_path);
           
         }
                 
         else 
         {
             cout<< "not a loop"<<endl; 
+    cout<< "final remain code"<<endl;
+    PrintVertices ( vertex_list );
             return false;
         } 
     
     }
 
-   // cout<< "final remain code"<<endl;
-   // PrintVertices ( vertex_list );
+    cout<< "final remain code"<<endl;
+    PrintVertices ( vertex_list );
     //cout<<"possible pass" << endl;
    // PrintVertices(possi_path;
  
@@ -750,12 +782,12 @@ bool runAlgMSN (char * str ,vector <Vertex2> &  whole_path  )
         if( isLegalDegree(degTable) )
         {
             // check if there are more than 1 loops
-           // cout<<"legal in degree"<<endl;   
+            cout<<"legal in degree"<<endl;   
 
             vector<Vertex2 > vertices_list;
             vertices_list = allVertices(degTable);
-        //    cout<< "# vertices" << vertices_list.size()<<endl;
-         //   PrintVertices(vertices_list);
+            cout<< "# vertices" << vertices_list.size()<<endl;
+            PrintVertices(vertices_list);
         //eraseElement  (vertices_list, vertices_list[0]) ;
         //cout<< "# vertices" << vertices_list.size()<<endl;
             vector<Vertex2> possible_path;
@@ -805,14 +837,15 @@ bool runAlgMSN (char * str ,vector <Vertex2> &  whole_path  )
 int main ()
 {
 
-char str[255] = "[((0, 0), (0, 1), 2), ((0, 0), (1, 0), 2), ((1, 0), (1, 1), 2), ((0, 1), (0, 2), 1), ((1, 1), (1, 2), 1), ((0, 2), (0, 3), 0), ((0, 3), (1, 3), 0), ((1,3),(1,2),0)]";
+//char str[255] = "[((0, 0), (0, 1), 2), ((0, 0), (1, 0), 2), ((1, 0), (1, 1), 2), ((0, 1), (0, 2), 1), ((1, 1), (1, 2), 1), ((0, 2), (0, 3), 0), ((0, 3), (1, 3), 0), ((1,3),(1,2),0)]";
 
+char str[1023] = "[((0,1),(0,2),3),((0,2),(0,3),3),((0,3),(1,3),3),((1,0),(1,1),2),((1,1),(1,2),2),((1,2),(0,2),2),((0,2),(0,3),2),((0,1),(1,1),1),((0,2),(1,2),1),((1,2),(1,3),1),((0,0),(1,0),0), ((0,0),(0,1),0), ((0,1), (0,2),0), ((1,1), (1,2),0) ,((1,2),(1,3),0), ((0,3),(1,3),0) ] ";
 vector<Vertex2> whole_path ; 
 bool islegalknot = runAlgMSN (str,whole_path  );
 if ( islegalknot  )
 {
-cout<< "this knot is legal"<< endl;
-PrintVertices(whole_path);
+    cout<< "this knot is legal"<< endl;
+    PrintVertices(whole_path);
 }      
  return 0;
 }
