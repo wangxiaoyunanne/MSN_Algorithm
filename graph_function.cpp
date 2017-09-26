@@ -688,10 +688,11 @@ vector <VerticalPairs> get_vertical_edges( int *** degTable , vector<int> **poss
     return vertical_edges;
 }
 
-int main ()
-{
-    char str[255] = "[((0, 0), (0, 1), 2), ((0, 0), (1, 0), 2), ((1, 0), (1, 1), 2), ((0, 1), (0, 2), 1), ((1, 1), (1, 2), 1), ((0, 2), (0, 3), 0), ((0, 3), (1, 3), 0), ((1,3),(1,2),0)]";
 
+bool runAlgMSN (char * str ,vector <Vertex2> &  whole_path  )
+
+{
+  
     vector<Edge> edges;
     vector <int > level_list;
     edges = edge_vector ( str, level_list);
@@ -766,19 +767,52 @@ int main ()
             if(num_loop ){
               //  PrintVertices(possible_path);
             // get full vertices of a path
-                vector<Vertex2> whole_path = add_inner_vertices (possible_path);
+                whole_path = add_inner_vertices (possible_path);
                 PrintVertices(whole_path);
                 cout<< "reducible ? "<< check_reducible(whole_path)<<endl;            
                 if ( ! check_reducible(whole_path)  ) 
                 {
-                PrintVertices(whole_path);
+                    PrintVertices(whole_path);
+                    return true;
+                }
+                else 
+                {
+                    cout<< "this knot is reducible"<<endl;
+                    return false;
                 }
             } // if is only 1 loop
-            
+            else
+            {
+                cout<<"more than one loop "<< endl;
+                return false;
+            }
         }// if islegaldegree
-
+        else 
+        {
+            cout<<"ilegal degree of degtable after adding vertical vertices"<< endl;
+            return false;
+        }
+    
     }// if islegal
+    else
+    {
+        cout<< "ilegal degree of degTable"<<endl;
+        return false;
+    }
      
-       
-    return 0;
+} // runAlgMSN 
+
+int main ()
+{
+
+char str[255] = "[((0, 0), (0, 1), 2), ((0, 0), (1, 0), 2), ((1, 0), (1, 1), 2), ((0, 1), (0, 2), 1), ((1, 1), (1, 2), 1), ((0, 2), (0, 3), 0), ((0, 3), (1, 3), 0), ((1,3),(1,2),0)]";
+
+vector<Vertex2> whole_path ; 
+bool islegalknot = runAlgMSN (str,whole_path  );
+if ( islegalknot  )
+{
+cout<< "this knot is legal"<< endl;
+PrintVertices(whole_path);
+}      
+ return 0;
 }
