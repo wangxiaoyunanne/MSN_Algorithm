@@ -722,6 +722,7 @@ vector <VerticalPairs> get_vertical_edges( int *** degTable , vector<int> **poss
     return vertical_edges;
 }
 
+
 void deAlloc3D(int *** array3D )
 {
     int i,j;
@@ -886,6 +887,7 @@ bool runAlgMSN (char * str ,vector <Vertex2> &  whole_path  )
             deAlloc_possi_connects(possible_connect);
 
            return false;
+
         }
     
     }// if islegal
@@ -893,7 +895,6 @@ bool runAlgMSN (char * str ,vector <Vertex2> &  whole_path  )
     {
         cout<< "ilegal degree of degTable"<<endl;
         deAlloc3D(degTable);
-
         return false;
     }
      
@@ -906,7 +907,8 @@ int main ()
 
 //char str[1023] = "[((0,1),(0,2),3),((0,2),(0,3),3),((0,3),(1,3),3),((1,0),(1,1),2),((1,1),(1,2),2),((1,2),(0,2),2),((0,2),(0,3),2),((0,1),(1,1),1),((0,2),(1,2),1),((1,2),(1,3),1),((0,0),(1,0),0), ((0,0),(0,1),0), ((0,1), (0,2),0), ((1,1), (1,2),0) ,((1,2),(1,3),0), ((0,3),(1,3),0) ] ";
 
-  ifstream in("tar3_test.txt");
+
+  ifstream in("tarKD3.txt");
   {
     if(! in)
     {
