@@ -21,9 +21,8 @@ new reversion of code
   
   Put result in tarKD3.txt. 1 3 3 26 s meas: xdim =1 ydim =3 zdim =3 total length of polygon is < 26. “s” means run serial code. 
   
-2 open tarKD3.txt and delete first 3 line of it, these are timing information we do not need them. 
 
-3 Make sure XDIM, YDIM, ZDIM and LENGTH are set as you want, for example 3 by 1 case length 26 polygons, it is 
+2 Make sure XDIM, YDIM, ZDIM and LENGTH are set as you want, for example 3 by 1 case length 26 polygons, it is 
 
 #define XDIM 1
 
@@ -33,13 +32,13 @@ new reversion of code
 
 #define LENGTH 26
 
-4 compile msnStep3.cpp
+3 compile msnStep3.cpp
 
 g++ -o graph_3 msnStep3.cpp -Wall -g
 
-5 run, the result will be put in graph_3.txt
+4 run, the result will be put in graph3.txt
 
-srun ./graph_3  > graph_3.txt 
+srun ./graph_3  > graph3.txt 
 
 
 
