@@ -931,7 +931,8 @@ int main ()
     char str [1023];
     while( in) {
       in.getline(str, 1023);
-     // cout<< str<<endl;
+      if (str[0] == '[')
+      {     // cout<< str<<endl;
       vector<Vertex2> whole_path ;
       bool islegalknot = runAlgMSN (str,whole_path  );
       if ( islegalknot  )
@@ -939,7 +940,7 @@ int main ()
         cout<< "this knot is legal"<< endl;
         PrintVertices(whole_path);
       }//if  
-
+      } //if
     }// while     
   }
   in.close();
