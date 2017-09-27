@@ -10,7 +10,9 @@ msnAlgRunner is the main class with most of the logic for the MSN Algorithm.
 Finally, pp-lib is the library that I downloaded and used to run it in parallel on the cluster.
 
 ##############################################################################################
+
 new reversion of code 
+
 1 Using msnAlgRunner.py for step 1 and step 2, it will output the diagrams of polygons. 
   complie and runs this part using :
   srun python msnAlgRunner.py 1 3 3 26 s > tarKD3.txt
