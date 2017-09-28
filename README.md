@@ -32,6 +32,8 @@ new reversion of code
 
 #define LENGTH 26
 
+You are need to go to main function to change the input txt file.
+
 3 compile msnStep3.cpp
 
 g++ -o graph_3 msnStep3.cpp -Wall -g
