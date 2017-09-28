@@ -19,7 +19,7 @@ new reversion of code
   
   srun python msnAlgRunner.py 1 3 3 26 s > tarKD3.txt
   
-  Put result in tarKD3.txt. 1 3 3 26 s meas: xdim =1 ydim =3 zdim =3 total length of polygon is < 26. “s” means run serial code. 
+  Put result in tarKD3.txt. 1 3 3 26 s meas: xdim =1 ydim =3 zdim =3 total length of polygon is <= 26. “s” means run serial code. 
   
 
 2 Make sure XDIM, YDIM, ZDIM and LENGTH are set as you want, for example 3 by 1 case length 26 polygons, it is 
