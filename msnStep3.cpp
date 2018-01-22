@@ -14,6 +14,7 @@ using std::list;
 #define YDIM 3
 #define ZDIM 3
 #define LENGTH 26
+#include <pthread.h>
 
 
 class Vertex {
@@ -929,6 +930,7 @@ int main ()
       return 1;
     }
     char str [1023];
+    
     while( in) {
       in.getline(str, 1023);
       if (str[0] == '[')
